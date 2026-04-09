@@ -201,6 +201,8 @@ For each selected document type:
 - **Figure captions:** Use pandoc implicit_figures format: `![Рисунок — Описание](path.png)` — pandoc auto-numbers figures.
 - **Table captions:** Place caption BEFORE the table using `: Описание таблицы` syntax (pandoc table caption).
 - **All headings in Russian.** No English headings whatsoever.
+- **NO horizontal rules.** Do NOT use `---` or `***` as section separators. They create ugly HR lines in DOCX.
+- **Table captions:** Place caption BEFORE the table using pandoc syntax: `: Таблица — Описание` on a line by itself before the table.
 - **YAML frontmatter** at the top of every generated file:
   ```yaml
   ---
@@ -243,6 +245,17 @@ pandoc \
 - `--reference-doc` — applies GOST-compliant styles (fonts, margins, spacing)
 
 **CRITICAL:** The Markdown source MUST NOT contain manual section numbers in headings. Use `# Введение`, NOT `# 1 Введение`. Pandoc `--number-sections` handles all numbering.
+
+After pandoc conversion, run post-processing to fix table borders, cell indents, and figure alignment:
+
+```bash
+python3 {skill_path}/scripts/postprocess-docx.py {project_path}/docs/output/{doc_name}.docx
+```
+
+For lite mode (Arial font):
+```bash
+python3 {skill_path}/scripts/postprocess-docx.py {project_path}/docs/output/{doc_name}.docx --font "Arial"
+```
 
 Create output directory if it doesn't exist: `mkdir -p {project_path}/docs/output`
 

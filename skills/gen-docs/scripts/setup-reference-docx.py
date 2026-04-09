@@ -16,19 +16,69 @@ from pathlib import Path
 
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
+from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Cm, Mm, Pt
 
 
 def set_font_all_faces(element: object, font_name: str) -> None:
-    """Set font name for all faces (ascii, hAnsi, eastAsia, cs) on an element's rPr."""
+    """Set font name for all faces and REMOVE theme overrides."""
     rpr = element.get_or_add_rPr()  # type: ignore[attr-defined]
     rfonts = rpr.find(qn("w:rFonts"))
     if rfonts is None:
         rfonts = rpr.makeelement(qn("w:rFonts"), {})
         rpr.insert(0, rfonts)
+    # Set explicit font names
     for attr in ("w:ascii", "w:hAnsi", "w:eastAsia", "w:cs"):
         rfonts.set(qn(attr), font_name)
+    # REMOVE theme attributes — they override explicit fonts in Word
+    for theme_attr in ("w:asciiTheme", "w:hAnsiTheme", "w:eastAsiaTheme", "w:cstheme"):
+        qname = qn(theme_attr)
+        if qname in rfonts.attrib:
+            del rfonts.attrib[qname]
+
+
+def set_table_borders(doc: Document) -> None:
+    """Configure Table style with full grid borders."""
+    # Find or work with the default Table style
+    for style in doc.styles:
+        if style.name in ("Table", "Table Grid", "Table Normal"):
+            style_elem = style.element
+
+            # Create tblPr if not exists
+            tbl_pr = style_elem.find(qn("w:tblPr"))
+            if tbl_pr is None:
+                tbl_pr = OxmlElement("w:tblPr")
+                style_elem.append(tbl_pr)
+
+            # Remove existing borders
+            existing = tbl_pr.find(qn("w:tblBorders"))
+            if existing is not None:
+                tbl_pr.remove(existing)
+
+            # Add full grid borders
+            borders = OxmlElement("w:tblBorders")
+            for border_name in ("top", "left", "bottom", "right", "insideH", "insideV"):
+                border = OxmlElement(f"w:{border_name}")
+                border.set(qn("w:val"), "single")
+                border.set(qn("w:sz"), "4")  # 0.5pt
+                border.set(qn("w:space"), "0")
+                border.set(qn("w:color"), "000000")
+                borders.append(border)
+            tbl_pr.append(borders)
+
+            # Remove cell margins/padding that cause indents
+            existing_margins = tbl_pr.find(qn("w:tblCellMar"))
+            if existing_margins is not None:
+                tbl_pr.remove(existing_margins)
+
+            cell_mar = OxmlElement("w:tblCellMar")
+            for side in ("top", "left", "bottom", "right"):
+                margin = OxmlElement(f"w:{side}")
+                margin.set(qn("w:w"), "28")  # ~0.5mm minimal padding
+                margin.set(qn("w:type"), "dxa")
+                cell_mar.append(margin)
+            tbl_pr.append(cell_mar)
 
 
 def configure_styles(doc: Document, strict: bool = True) -> Document:
@@ -72,6 +122,14 @@ def configure_styles(doc: Document, strict: bool = True) -> Document:
         style.font.size = size
         style.font.bold = bold
         style.font.color.rgb = None
+        # Remove theme color
+        rpr = style.element.get_or_add_rPr()
+        color_elem = rpr.find(qn("w:color"))
+        if color_elem is not None:
+            for attr in ("w:themeColor", "w:themeShade", "w:themeTint"):
+                qattr = qn(attr)
+                if qattr in color_elem.attrib:
+                    del color_elem.attrib[qattr]
         pf = style.paragraph_format
         pf.space_before = Pt(18) if name == "Heading 1" else Pt(12)
         pf.space_after = Pt(6)
@@ -80,35 +138,72 @@ def configure_styles(doc: Document, strict: bool = True) -> Document:
         pf.keep_with_next = True
         set_font_all_faces(style.element, font_name)
 
-    # --- Body Text (pandoc uses this for regular paragraphs) ---
+    # --- Body Text styles (pandoc uses these for regular paragraphs) ---
     for body_style_name in ("Body Text", "First Paragraph", "Compact"):
-        if body_style_name in doc.styles:
-            bs = doc.styles[body_style_name]
-            bs.font.name = font_name
-            bs.font.size = body_size
-            bs.paragraph_format.line_spacing_rule = WD_LINE_SPACING.MULTIPLE
-            bs.paragraph_format.line_spacing = line_spacing
-            bs.paragraph_format.space_after = Pt(0)
-            bs.paragraph_format.first_line_indent = Cm(1.25) if strict else None
-            set_font_all_faces(bs.element, font_name)
+        if body_style_name not in doc.styles:
+            continue
+        bs = doc.styles[body_style_name]
+        bs.font.name = font_name
+        bs.font.size = body_size
+        bs.paragraph_format.line_spacing_rule = WD_LINE_SPACING.MULTIPLE
+        bs.paragraph_format.line_spacing = line_spacing
+        bs.paragraph_format.space_after = Pt(0)
+        bs.paragraph_format.first_line_indent = Cm(1.25) if strict else None
+        set_font_all_faces(bs.element, font_name)
 
-    # --- TOC styles ---
+    # --- TOC styles — LEFT aligned ---
     for toc_name in ("TOC Heading", "TOC 1", "TOC 2", "TOC 3"):
-        if toc_name in doc.styles:
-            toc = doc.styles[toc_name]
-            toc.font.name = font_name
-            if toc_name == "TOC Heading":
-                toc.font.size = Pt(16) if strict else Pt(14)
-                toc.font.bold = True
-            else:
-                toc.font.size = body_size
-            set_font_all_faces(toc.element, font_name)
+        if toc_name not in doc.styles:
+            continue
+        toc = doc.styles[toc_name]
+        toc.font.name = font_name
+        toc.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        toc.paragraph_format.first_line_indent = None
+        if toc_name == "TOC Heading":
+            toc.font.size = Pt(16) if strict else Pt(14)
+            toc.font.bold = True
+        else:
+            toc.font.size = body_size
+        set_font_all_faces(toc.element, font_name)
+
+    # --- Figure / Image styles — NO indent ---
+    for fig_name in ("Figure", "Captioned Figure", "Image Caption"):
+        if fig_name in doc.styles:
+            fs = doc.styles[fig_name]
+            fs.paragraph_format.first_line_indent = None
+            fs.paragraph_format.left_indent = None
+            fs.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            if hasattr(fs, 'font'):
+                fs.font.name = font_name
+                set_font_all_faces(fs.element, font_name)
+
+    # --- Caption style ---
+    if "Caption" in doc.styles:
+        cap = doc.styles["Caption"]
+        cap.font.name = font_name
+        cap.font.size = Pt(12) if strict else Pt(11)
+        cap.font.italic = True
+        cap.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        cap.paragraph_format.first_line_indent = None
+        cap.paragraph_format.left_indent = None
+        set_font_all_faces(cap.element, font_name)
+
+    # --- Table Caption ---
+    if "Table Caption" in doc.styles:
+        tc = doc.styles["Table Caption"]
+        tc.font.name = font_name
+        tc.font.size = Pt(12) if strict else Pt(11)
+        tc.font.italic = True
+        tc.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        tc.paragraph_format.first_line_indent = None
+        set_font_all_faces(tc.element, font_name)
 
     # --- Table Grid ---
-    if "Table Grid" in doc.styles:
-        tg = doc.styles["Table Grid"]
-        tg.font.name = font_name
-        tg.font.size = Pt(12) if strict else Pt(11)
+    if "Table" in doc.styles:
+        tg = doc.styles["Table"]
+        if hasattr(tg, 'font'):
+            tg.font.name = font_name
+            tg.font.size = Pt(12) if strict else Pt(11)
 
     # --- Code (Verbatim Char / Source Code) ---
     for code_name in ("Source Code", "Verbatim Char"):
@@ -117,15 +212,6 @@ def configure_styles(doc: Document, strict: bool = True) -> Document:
             cs.font.name = "Courier New"
             cs.font.size = Pt(10)
 
-    # --- Caption ---
-    if "Caption" in doc.styles:
-        cap = doc.styles["Caption"]
-        cap.font.name = font_name
-        cap.font.size = Pt(12) if strict else Pt(11)
-        cap.font.italic = True
-        cap.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        set_font_all_faces(cap.element, font_name)
-
     # --- Block Text (blockquotes/notes) ---
     if "Block Text" in doc.styles:
         bt = doc.styles["Block Text"]
@@ -133,6 +219,7 @@ def configure_styles(doc: Document, strict: bool = True) -> Document:
         bt.font.size = Pt(12) if strict else Pt(11)
         bt.font.italic = True
         bt.paragraph_format.left_indent = Cm(1)
+        bt.paragraph_format.first_line_indent = None
         set_font_all_faces(bt.element, font_name)
 
     # --- Footer ---
@@ -143,21 +230,27 @@ def configure_styles(doc: Document, strict: bool = True) -> Document:
         ft.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.RIGHT
         set_font_all_faces(ft.element, font_name)
 
-    # --- List Bullet / List Number ---
+    # --- List styles ---
     for list_name in ("List Bullet", "List Number", "List Paragraph"):
-        if list_name in doc.styles:
-            ls = doc.styles[list_name]
-            ls.font.name = font_name
-            ls.font.size = body_size
-            set_font_all_faces(ls.element, font_name)
+        if list_name not in doc.styles:
+            continue
+        ls = doc.styles[list_name]
+        ls.font.name = font_name
+        ls.font.size = body_size
+        ls.paragraph_format.first_line_indent = None
+        set_font_all_faces(ls.element, font_name)
 
-    # --- Definition Term / Definition ---
+    # --- Definition styles ---
     for def_name in ("Definition Term", "Definition"):
-        if def_name in doc.styles:
-            ds = doc.styles[def_name]
-            ds.font.name = font_name
-            ds.font.size = body_size
-            set_font_all_faces(ds.element, font_name)
+        if def_name not in doc.styles:
+            continue
+        ds = doc.styles[def_name]
+        ds.font.name = font_name
+        ds.font.size = body_size
+        set_font_all_faces(ds.element, font_name)
+
+    # --- Table borders ---
+    set_table_borders(doc)
 
     return doc
 
