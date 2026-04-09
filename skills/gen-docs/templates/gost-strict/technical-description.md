@@ -1,11 +1,14 @@
-# {system_name}. Техническое описание
+---
+title: "{system_name}. Техническое описание"
+lang: ru-RU
+---
 
-<!-- GOST mode: strict | Template version: 1.0 -->
+<!-- GOST mode: strict | Template version: 1.1 -->
 <!-- Reference: РД 50-34.698-90, ГОСТ Р 59795-2021, ГОСТ 19.402-78 -->
 
-## 1 Общие сведения
+# Общие сведения
 
-### 1.1 Наименование и назначение
+## Наименование и назначение
 
 <!-- AGENT: Provide the full official name and purpose of the system.
 Source: spec-reader SYSTEM PURPOSE.
@@ -19,7 +22,7 @@ MUST include:
 
 Система предназначена для автоматизации процессов... .
 
-### 1.2 Перечень используемых технологий
+## Перечень используемых технологий
 
 <!-- AGENT: Create a COMPLETE technology stack table.
 Source: doc-researcher SYSTEM OVERVIEW + package.json/requirements.txt/go.mod/Cargo.toml analysis.
@@ -46,9 +49,9 @@ Group by category. Include version numbers where known. -->
 
 <!-- AGENT: Fill all rows from actual project analysis -->
 
-## 2 Архитектура системы
+# Архитектура системы
 
-### 2.1 Общая схема
+## Общая схема
 
 <!-- AGENT: Create a comprehensive architecture diagram using Mermaid.
 Source: doc-researcher ARCHITECTURE.
@@ -80,7 +83,7 @@ graph TB
 
 <!-- AGENT: Replace this example diagram with the actual architecture from doc-researcher output -->
 
-### 2.2 Описание компонентов
+## Описание компонентов
 
 <!-- AGENT: For EACH component/service in the system, provide:
 1. Component name and identifier (e.g., container name from docker-compose)
@@ -92,9 +95,9 @@ graph TB
 7. Dependencies on other components
 
 Source: doc-researcher ARCHITECTURE + docker-compose.yml analysis.
-Create a separate subsection (2.2.N) for each component. -->
+Create a separate subsection for each component. -->
 
-#### 2.2.1 Сервер приложения
+### Сервер приложения
 
 <!-- AGENT: Describe the main application server -->
 
@@ -106,7 +109,7 @@ Create a separate subsection (2.2.N) for each component. -->
 
 **Зависимости:** база данных.
 
-#### 2.2.2 База данных
+### База данных
 
 <!-- AGENT: Describe the database server -->
 
@@ -116,9 +119,9 @@ Create a separate subsection (2.2.N) for each component. -->
 
 **Порты:** —
 
-<!-- AGENT: Continue with 2.2.3, 2.2.4, etc. for each service discovered -->
+<!-- AGENT: Continue with additional subsections for each service discovered -->
 
-### 2.3 Взаимодействие компонентов
+## Взаимодействие компонентов
 
 <!-- AGENT: Describe how components communicate with each other.
 Source: doc-researcher ARCHITECTURE.
@@ -129,7 +132,7 @@ MUST include:
 4. Error handling between components (retries, circuit breakers, timeouts)
 5. Data formats exchanged (JSON, Protocol Buffers, etc.) -->
 
-#### 2.3.1 Схема взаимодействия для типовой операции
+### Схема взаимодействия для типовой операции
 
 <!-- AGENT: Create a Mermaid sequence diagram for the most common operation flow:
 ```mermaid
@@ -145,16 +148,16 @@ sequenceDiagram
 ```
 -->
 
-#### 2.3.2 Протоколы и форматы данных
+### Протоколы и форматы данных
 
 | Компонент-источник | Компонент-приёмник | Протокол | Формат данных |
 |--------------------|--------------------|----------|---------------|
 
 <!-- AGENT: Fill based on actual architecture analysis -->
 
-## 3 Структура данных
+# Структура данных
 
-### 3.1 Описание базы данных
+## Описание базы данных
 
 <!-- AGENT: Provide database overview.
 Source: doc-researcher DATABASE.
@@ -167,7 +170,7 @@ MUST include:
 6. Indexing strategy overview
 7. Partitioning strategy if applicable -->
 
-#### 3.1.1 ER-диаграмма
+### ER-диаграмма
 
 <!-- AGENT: Create a Mermaid ER diagram showing all entities and their relationships:
 ```mermaid
@@ -189,7 +192,7 @@ erDiagram
 ```
 Source: doc-researcher DATABASE (migrations, models, schema files) -->
 
-### 3.2 Основные сущности
+## Основные сущности
 
 <!-- AGENT: For EACH database table/collection, create a detailed description.
 Source: doc-researcher DATABASE.
@@ -201,11 +204,11 @@ For each entity provide:
 5. Foreign keys and relationships
 6. Triggers or computed fields if any
 
-Create subsection 3.2.N for each entity.
+Create a subsection for each entity.
 
 Example: -->
 
-#### 3.2.1 Пользователи (users)
+### Пользователи (users)
 
 Таблица содержит данные учётных записей пользователей системы.
 
@@ -226,9 +229,9 @@ Example: -->
 | `users_pkey` | `id` | PRIMARY |
 | `users_email_unique` | `email` | UNIQUE |
 
-<!-- AGENT: Continue with 3.2.2, 3.2.3, etc. for every entity in the database -->
+<!-- AGENT: Continue with additional subsections for every entity in the database -->
 
-## 4 Описание API
+# Описание API
 
 <!-- AGENT: Document ALL API endpoints.
 Source: doc-researcher ROUTES.
@@ -245,7 +248,7 @@ Present the overview as a summary table first, then detailed descriptions.
 
 IMPORTANT: Include ALL endpoints, not just CRUD. Include auth endpoints, health checks, file upload endpoints, webhooks, etc. -->
 
-### 4.1 Сводная таблица API
+## Сводная таблица API
 
 | Метод | URL | Описание | Аутентификация |
 |-------|-----|----------|----------------|
@@ -255,12 +258,12 @@ IMPORTANT: Include ALL endpoints, not just CRUD. Include auth endpoints, health 
 
 <!-- AGENT: Fill with ALL routes from doc-researcher ROUTES output -->
 
-### 4.2 Детальное описание эндпоинтов
+## Детальное описание эндпоинтов
 
 <!-- AGENT: For each endpoint, create a detailed description block.
 Example format:
 
-#### POST /api/auth/login
+### POST /api/auth/login
 
 **Описание:** Аутентификация пользователя по логину и паролю.
 
@@ -297,13 +300,13 @@ Example format:
 | 401 | Неверный логин или пароль |
 -->
 
-## 5 Безопасность
+# Безопасность
 
 <!-- AGENT: Comprehensive security description.
 Source: doc-researcher AUTH + code analysis.
 MUST include ALL of the following subsections: -->
 
-### 5.1 Аутентификация
+## Аутентификация
 
 <!-- AGENT: Describe the authentication mechanism:
 1. Authentication method (JWT, session, OAuth2, SAML, etc.)
@@ -313,7 +316,7 @@ MUST include ALL of the following subsections: -->
 5. Brute-force protection (rate limiting, account lockout)
 Source: doc-researcher AUTH -->
 
-### 5.2 Авторизация
+## Авторизация
 
 <!-- AGENT: Describe the authorization model:
 1. Authorization approach (RBAC, ABAC, ACL)
@@ -322,7 +325,7 @@ Source: doc-researcher AUTH -->
 4. How authorization is enforced (middleware, guards, decorators)
 Source: doc-researcher AUTH -->
 
-### 5.3 Защита данных
+## Защита данных
 
 <!-- AGENT: Describe data protection measures:
 1. Data encryption at rest (database, file storage)
@@ -331,7 +334,7 @@ Source: doc-researcher AUTH -->
 4. Data sanitization and validation
 Source: doc-researcher AUTH + code analysis -->
 
-### 5.4 Сетевая безопасность
+## Сетевая безопасность
 
 <!-- AGENT: Describe network security measures:
 1. CORS policy
@@ -341,7 +344,7 @@ Source: doc-researcher AUTH + code analysis -->
 5. HTTPS enforcement
 Source: doc-researcher code analysis of middleware/security configuration -->
 
-### 5.5 Журналирование событий безопасности
+## Журналирование событий безопасности
 
 <!-- AGENT: Describe security event logging:
 1. What security events are logged (login, logout, failed attempts, permission changes)
@@ -349,13 +352,13 @@ Source: doc-researcher code analysis of middleware/security configuration -->
 3. Log retention policy
 4. Audit trail capabilities -->
 
-## 6 Масштабирование и отказоустойчивость
+# Масштабирование и отказоустойчивость
 
 <!-- AGENT: Describe scalability and reliability characteristics.
 Source: doc-researcher ARCHITECTURE.
 MUST include: -->
 
-### 6.1 Горизонтальное масштабирование
+## Горизонтальное масштабирование
 
 <!-- AGENT: Describe how the system can be scaled horizontally:
 1. Which components can be replicated
@@ -365,18 +368,18 @@ MUST include: -->
 5. Database scaling (read replicas, sharding)
 If the system is not designed for horizontal scaling, state this explicitly and describe what would need to change. -->
 
-### 6.2 Вертикальное масштабирование
+## Вертикальное масштабирование
 
 <!-- AGENT: Describe vertical scaling options:
 1. Which resources can be increased (CPU, RAM, disk)
 2. Configuration changes needed for larger resources
 3. Performance bottleneck identification -->
 
-### 6.3 Отказоустойчивость
+## Отказоустойчивость
 
 <!-- AGENT: Describe fault tolerance measures:
 1. Single points of failure and mitigation
 2. Health checks and auto-restart (Docker restart policies)
 3. Data replication strategy
-4. Backup and recovery (reference admin guide section 5)
+4. Backup and recovery (reference admin guide)
 5. Graceful degradation under load -->

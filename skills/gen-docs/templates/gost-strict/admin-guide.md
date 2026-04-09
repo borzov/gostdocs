@@ -1,11 +1,14 @@
-# {system_name}. Руководство администратора
+---
+title: "{system_name}. Руководство администратора"
+lang: ru-RU
+---
 
-<!-- GOST mode: strict | Template version: 1.0 -->
+<!-- GOST mode: strict | Template version: 1.1 -->
 <!-- Reference: РД 50-34.698-90, ГОСТ Р 59795-2021 -->
 
-## 1 Введение
+# Введение
 
-### 1.1 Область применения
+## Область применения
 
 <!-- AGENT: Describe the scope of this admin guide. State the system name, version, and that this document is intended for system administrators responsible for installation, configuration, and maintenance. Source: spec-reader SYSTEM PURPOSE + doc-researcher SYSTEM OVERVIEW -->
 
@@ -15,7 +18,7 @@
 
 Руководство содержит сведения, необходимые для развёртывания системы, управления учётными записями, резервного копирования и восстановления данных.
 
-### 1.2 Краткое описание системы
+## Краткое описание системы
 
 <!-- AGENT: Provide a concise technical overview of the system from the administrator's perspective:
 1. System purpose (1-2 sentences)
@@ -26,9 +29,9 @@ Source: doc-researcher SYSTEM OVERVIEW + ARCHITECTURE -->
 
 Система «{system_name}» представляет собой веб-приложение, построенное на базе клиент-серверной архитектуры. Серверная часть обеспечивает обработку бизнес-логики и хранение данных, клиентская часть реализует пользовательский интерфейс в веб-браузере.
 
-## 2 Требования к окружению
+# Требования к окружению
 
-### 2.1 Аппаратные требования
+## Аппаратные требования
 
 <!-- AGENT: Specify hardware requirements for the server(s) running the system.
 Source: doc-researcher DEPLOYMENT, Dockerfile analysis, docker-compose.yml resource limits.
@@ -48,7 +51,7 @@ If no explicit requirements found in source, derive reasonable estimates from th
 | Дисковое пространство | 20 ГБ (SSD) | 50 ГБ (SSD) |
 | Сетевой интерфейс | 100 Мбит/с | 1 Гбит/с |
 
-### 2.2 Программные требования
+## Программные требования
 
 <!-- AGENT: List ALL software dependencies needed to run the system.
 Source: doc-researcher SYSTEM OVERVIEW, docker-compose.yml, Dockerfile, package.json/requirements.txt.
@@ -70,9 +73,9 @@ Present as a table with columns: Software, Minimum Version, Purpose. -->
 
 <!-- AGENT: Add rows for every dependency discovered in the project -->
 
-## 3 Установка и первоначальная настройка
+# Установка и первоначальная настройка
 
-### 3.1 Развёртывание системы
+## Развёртывание системы
 
 <!-- AGENT: Provide COMPLETE deployment instructions from scratch.
 Source: doc-researcher DEPLOYMENT + docker-compose.yml analysis.
@@ -117,7 +120,7 @@ cd {project_dir}
 
 # 2. Настройка переменных окружения
 cp .env.example .env
-# Отредактируйте файл .env (см. раздел 3.2)
+# Отредактируйте файл .env (см. раздел «Конфигурация»)
 
 # 3. Сборка и запуск
 docker compose up -d --build
@@ -126,7 +129,7 @@ docker compose up -d --build
 docker compose ps
 ```
 
-### 3.2 Конфигурация
+## Конфигурация
 
 <!-- AGENT: Document EVERY configuration parameter from .env.example.
 Source: doc-researcher CONFIGURATION.
@@ -142,7 +145,7 @@ For EACH parameter provide:
 Present as a table. Group parameters by category (database, application, mail, etc.).
 Mark secrets with ⚠ and note that they must be changed from defaults. -->
 
-#### 3.2.1 Параметры подключения к базе данных
+### Параметры подключения к базе данных
 
 | Параметр | Описание | Значение по умолчанию | Допустимые значения | Обязательный |
 |----------|----------|----------------------|---------------------|-------------|
@@ -159,7 +162,7 @@ Mark secrets with ⚠ and note that they must be changed from defaults. -->
 - Logging configuration
 - Any other parameters found in .env.example -->
 
-#### 3.2.2 Параметры приложения
+### Параметры приложения
 
 | Параметр | Описание | Значение по умолчанию | Допустимые значения | Обязательный |
 |----------|----------|----------------------|---------------------|-------------|
@@ -167,7 +170,7 @@ Mark secrets with ⚠ and note that they must be changed from defaults. -->
 | `APP_SECRET` | Секретный ключ приложения ⚠ | — | Строка не менее 32 символов | Да |
 | `APP_ENV` | Режим работы | `production` | `development`, `production` | Да |
 
-### 3.3 Инициализация базы данных
+## Инициализация базы данных
 
 <!-- AGENT: Describe database initialization steps.
 Source: doc-researcher DEPLOYMENT + DATABASE.
@@ -191,7 +194,7 @@ docker compose exec app {seed_command}
 
 **Внимание!** После инициализации в системе создаётся учётная запись администратора по умолчанию. Незамедлительно измените пароль при первом входе.
 
-### 3.4 Проверка работоспособности
+## Проверка работоспособности
 
 <!-- AGENT: Describe how to verify that the deployed system works correctly.
 Source: doc-researcher DEPLOYMENT + ROUTES.
@@ -223,7 +226,7 @@ curl -f http://localhost:{port}/health
 docker compose logs --tail=50 app
 ```
 
-## 4 Управление пользователями и правами доступа
+# Управление пользователями и правами доступа
 
 <!-- AGENT: Comprehensive user and access management guide.
 Source: doc-researcher AUTH + FEATURES.
@@ -237,7 +240,7 @@ MUST include:
 
 For each operation provide step-by-step instructions. -->
 
-### 4.1 Роли и права доступа
+## Роли и права доступа
 
 <!-- AGENT: Create a permission matrix table:
 Rows = operations/features, Columns = roles.
@@ -251,7 +254,7 @@ Source: doc-researcher AUTH (role definitions, guards, middleware) -->
 | Управление пользователями | — | ✓ |
 | Настройка системы | — | ✓ |
 
-### 4.2 Создание учётной записи
+## Создание учётной записи
 
 Для создания новой учётной записи пользователя:
 
@@ -265,14 +268,14 @@ Source: doc-researcher AUTH (role definitions, guards, middleware) -->
 
 5. Нажмите «Сохранить».
 
-### 4.3 Блокировка и удаление учётных записей
+## Блокировка и удаление учётных записей
 
 <!-- AGENT: Describe account deactivation and deletion procedures.
 Note the difference: deactivation preserves data, deletion may be irreversible. -->
 
-## 5 Резервное копирование и восстановление
+# Резервное копирование и восстановление
 
-### 5.1 Резервное копирование базы данных
+## Резервное копирование базы данных
 
 <!-- AGENT: Provide exact backup commands for the database used in the project.
 Source: doc-researcher DATABASE + DEPLOYMENT.
@@ -297,12 +300,12 @@ docker compose exec db pg_dump -U {db_user} {db_name} > backup_$(date +%Y%m%d_%H
 0 2 * * * docker compose -f /path/to/docker-compose.yml exec -T db pg_dump -U {db_user} {db_name} | gzip > /backups/{system_name}_$(date +\%Y\%m\%d).sql.gz
 ```
 
-### 5.2 Резервное копирование файлов конфигурации
+## Резервное копирование файлов конфигурации
 
 <!-- AGENT: List all configuration files and directories that must be backed up.
 Include: .env, docker-compose.yml, nginx configs, SSL certificates, uploaded files directory. -->
 
-### 5.3 Восстановление из резервной копии
+## Восстановление из резервной копии
 
 <!-- AGENT: Step-by-step restore procedure.
 MUST include:
@@ -326,9 +329,9 @@ docker compose up -d
 docker compose ps
 ```
 
-## 6 Мониторинг и журналирование
+# Мониторинг и журналирование
 
-### 6.1 Просмотр журналов
+## Просмотр журналов
 
 <!-- AGENT: Describe all log sources and how to access them.
 Source: doc-researcher analysis of logging configuration.
@@ -350,12 +353,12 @@ docker compose logs -f app
 docker compose logs --since 1h app
 ```
 
-### 6.2 Мониторинг состояния
+## Мониторинг состояния
 
 <!-- AGENT: Describe monitoring endpoints, metrics, and what to watch for.
 Include: health check endpoints, resource utilization monitoring, alerting recommendations. -->
 
-### 6.3 Журнал действий пользователей
+## Журнал действий пользователей
 
 <!-- AGENT: If the system has an audit log, describe:
 1. What actions are logged
@@ -364,7 +367,7 @@ Include: health check endpoints, resource utilization monitoring, alerting recom
 4. Retention policy
 Source: doc-researcher FEATURES (audit/logging features) -->
 
-## 7 Обновление системы
+# Обновление системы
 
 <!-- AGENT: Provide a complete update procedure.
 Source: doc-researcher DEPLOYMENT.
@@ -378,15 +381,15 @@ MUST include:
 
 Для обновления системы до новой версии выполните следующие действия:
 
-### 7.1 Подготовка к обновлению
+## Подготовка к обновлению
 
-1. Создайте резервную копию базы данных (см. раздел 5.1).
+1. Создайте резервную копию базы данных (см. раздел «Резервное копирование базы данных»).
 
-2. Создайте резервную копию файлов конфигурации (см. раздел 5.2).
+2. Создайте резервную копию файлов конфигурации (см. раздел «Резервное копирование файлов конфигурации»).
 
 3. Уведомите пользователей о плановых работах.
 
-### 7.2 Выполнение обновления
+## Выполнение обновления
 
 ```bash
 # Получение новой версии
@@ -401,11 +404,11 @@ docker compose up -d --build
 docker compose exec app {migration_command}
 ```
 
-### 7.3 Проверка после обновления
+## Проверка после обновления
 
-Выполните проверку работоспособности в соответствии с разделом 3.4.
+Выполните проверку работоспособности в соответствии с разделом «Проверка работоспособности».
 
-### 7.4 Откат обновления
+## Откат обновления
 
 В случае обнаружения критических ошибок после обновления:
 
@@ -413,11 +416,11 @@ docker compose exec app {migration_command}
 
 2. Верните предыдущую версию кода.
 
-3. Восстановите базу данных из резервной копии (см. раздел 5.3).
+3. Восстановите базу данных из резервной копии (см. раздел «Восстановление из резервной копии»).
 
 4. Запустите контейнеры: `docker compose up -d`.
 
-## 8 Устранение неполадок
+# Устранение неполадок
 
 <!-- AGENT: Create a comprehensive troubleshooting guide for administrators.
 Source: doc-researcher code analysis, common issues with the technology stack.

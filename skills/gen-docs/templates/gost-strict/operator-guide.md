@@ -1,11 +1,14 @@
-# {system_name}. Руководство оператора
+---
+title: "{system_name}. Руководство оператора"
+lang: ru-RU
+---
 
-<!-- GOST mode: strict | Template version: 1.0 -->
+<!-- GOST mode: strict | Template version: 1.1 -->
 <!-- Reference: РД 50-34.698-90, ГОСТ Р 59795-2021 -->
 
-## 1 Введение
+# Введение
 
-### 1.1 Область применения
+## Область применения
 
 <!-- AGENT: Describe the scope of this operator guide. The operator is the person responsible for day-to-day system operation: starting, stopping, monitoring, and handling incidents. This is distinct from the administrator (who configures and deploys) and the user (who uses business features). Source: spec-reader SYSTEM PURPOSE + doc-researcher SYSTEM OVERVIEW -->
 
@@ -13,7 +16,7 @@
 
 Документ предназначен для персонала, осуществляющего повседневную эксплуатацию системы: запуск, остановку, контроль состояния и обработку нештатных ситуаций.
 
-### 1.2 Краткое описание системы
+## Краткое описание системы
 
 <!-- AGENT: Brief system description from the operator's perspective. Focus on:
 1. System purpose (1-2 sentences)
@@ -29,7 +32,7 @@ Source: doc-researcher SYSTEM OVERVIEW + ARCHITECTURE -->
 - Кэш-сервер (redis) — кэширование и очереди задач.
 -->
 
-## 2 Назначение и описание системы
+# Назначение и описание системы
 
 <!-- AGENT: Detailed system description for the operator. Source: spec-reader + doc-researcher.
 MUST include:
@@ -39,11 +42,11 @@ MUST include:
 4. Data flow overview (what data enters, is processed, and exits)
 5. External dependencies (third-party services, APIs, DNS, mail servers) -->
 
-### 2.1 Назначение системы
+## Назначение системы
 
 Система «{system_name}» предназначена для автоматизации процессов... .
 
-### 2.2 Состав системы
+## Состав системы
 
 <!-- AGENT: Create a component table:
 | Компонент | Технология | Порт | Назначение |
@@ -55,7 +58,7 @@ List every service/container with its technology, exposed ports, and purpose. --
 | Веб-приложение | — | — | Обработка бизнес-логики и клиентских запросов |
 | База данных | — | — | Хранение данных системы |
 
-### 2.3 Схема взаимодействия компонентов
+## Схема взаимодействия компонентов
 
 <!-- AGENT: Provide a Mermaid diagram showing how components interact:
 ```mermaid
@@ -67,7 +70,7 @@ graph LR
 ```
 Source: doc-researcher ARCHITECTURE -->
 
-## 3 Условия выполнения операций
+# Условия выполнения операций
 
 <!-- AGENT: Describe the environment and access requirements for the operator.
 Source: doc-researcher DEPLOYMENT.
@@ -88,9 +91,9 @@ MUST include:
 
 — контактные данные администратора системы для эскалации инцидентов.
 
-## 4 Повседневные операции
+# Повседневные операции
 
-### 4.1 Запуск системы
+## Запуск системы
 
 <!-- AGENT: Provide complete startup procedure.
 Source: doc-researcher DEPLOYMENT + docker-compose.yml.
@@ -100,7 +103,7 @@ MUST include:
 3. Expected startup sequence (which services start first)
 4. Startup time estimate
 5. How to verify successful startup (health checks, log messages)
-6. What to do if startup fails (reference section 5) -->
+6. What to do if startup fails (reference the emergency section) -->
 
 Для запуска системы выполните следующие действия:
 
@@ -132,7 +135,7 @@ docker compose ps
 curl -f http://localhost:{port}/health
 ```
 
-### 4.2 Остановка системы
+## Остановка системы
 
 <!-- AGENT: Provide graceful shutdown procedure.
 Source: doc-researcher DEPLOYMENT.
@@ -163,7 +166,7 @@ docker compose ps
 docker compose kill {service_name}
 ```
 
-### 4.3 Контроль состояния
+## Контроль состояния
 
 <!-- AGENT: Comprehensive health monitoring guide.
 Source: doc-researcher DEPLOYMENT + ARCHITECTURE.
@@ -176,7 +179,7 @@ MUST include:
 6. Recommended monitoring frequency (continuous, hourly, daily)
 7. Alert thresholds and escalation criteria -->
 
-#### 4.3.1 Проверка состояния контейнеров
+### Проверка состояния контейнеров
 
 ```bash
 # Статус всех контейнеров
@@ -186,7 +189,7 @@ docker compose ps
 docker stats --no-stream
 ```
 
-#### 4.3.2 Проверка журналов
+### Проверка журналов
 
 ```bash
 # Журнал приложения (последние 100 строк)
@@ -196,7 +199,7 @@ docker compose logs --tail=100 app
 docker compose logs -f app
 ```
 
-#### 4.3.3 Критерии нормальной работы
+### Критерии нормальной работы
 
 | Параметр | Нормальное значение | Предупреждение | Критическое |
 |----------|-------------------|----------------|-------------|
@@ -205,7 +208,7 @@ docker compose logs -f app
 | Свободное место на диске | > 20% | 10–20% | < 10% |
 | Время отклика | < 2 с | 2–5 с | > 5 с |
 
-### 4.4 Перезапуск системы
+## Перезапуск системы
 
 <!-- AGENT: Describe restart procedure (combination of stop + start with additional checks).
 Include: when restart is needed, hot restart vs cold restart, service-level restart. -->
@@ -220,7 +223,7 @@ docker compose restart
 docker compose restart app
 ```
 
-### 4.5 Операции ввода/вывода данных
+## Операции ввода/вывода данных
 
 <!-- AGENT: Describe data import/export procedures if applicable.
 Source: doc-researcher FEATURES (import/export functionality).
@@ -231,9 +234,9 @@ MUST include:
 4. Data validation during import
 5. Handling import errors -->
 
-## 5 Аварийные ситуации
+# Аварийные ситуации
 
-### 5.1 Классификация аварийных ситуаций
+## Классификация аварийных ситуаций
 
 <!-- AGENT: Define severity levels for incidents:
 1. Критическая — полная недоступность системы
@@ -250,7 +253,7 @@ For each level specify: response time, escalation rules, responsible parties. --
 | Средний | Частичное нарушение функциональности | 2 часа | Диагностика, плановое устранение |
 | Низкий | Незначительные отклонения | 8 часов | Фиксация в журнале, устранение при возможности |
 
-### 5.2 Действия при аварийных ситуациях
+## Действия при аварийных ситуациях
 
 <!-- AGENT: For each common failure scenario, provide a step-by-step recovery procedure:
 
@@ -268,7 +271,7 @@ Each scenario MUST include:
 - Verification after recovery
 - Escalation criteria (when to involve administrator) -->
 
-#### 5.2.1 Контейнер приложения не отвечает
+### Контейнер приложения не отвечает
 
 **Симптомы:** система недоступна по HTTP, health check возвращает ошибку.
 
@@ -285,7 +288,7 @@ docker compose restart app
 
 **Эскалация:** если перезапуск не помог в течение 10 минут, обратитесь к администратору системы.
 
-#### 5.2.2 База данных недоступна
+### База данных недоступна
 
 **Симптомы:** ошибки подключения к базе данных в журнале приложения.
 
@@ -304,7 +307,7 @@ docker compose restart app
 
 **Эскалация:** если база данных не запускается, обратитесь к администратору для восстановления из резервной копии.
 
-#### 5.2.3 Переполнение дискового пространства
+### Переполнение дискового пространства
 
 **Симптомы:** ошибки записи в журналах, система не сохраняет данные.
 
@@ -323,7 +326,7 @@ docker system prune -f
 docker compose logs --no-log-prefix app > /dev/null
 ```
 
-### 5.3 Журнал учёта аварийных ситуаций
+## Журнал учёта аварийных ситуаций
 
 <!-- AGENT: Recommend a format for logging incidents:
 | Дата | Время обнаружения | Уровень | Описание | Причина | Принятые меры | Время восстановления |
@@ -335,7 +338,7 @@ This is for manual record-keeping by the operator. -->
 |------|-------------------|---------|-------------------|---------|--------------|----------------------|
 | | | | | | | |
 
-## 6 Взаимодействие со смежными системами
+# Взаимодействие со смежными системами
 
 <!-- AGENT: Document all external integrations and dependent services.
 Source: doc-researcher ARCHITECTURE + code analysis of external API calls.
@@ -347,7 +350,7 @@ For each external system include:
 5. What happens when the external system is unavailable (graceful degradation?)
 6. Monitoring the integration health -->
 
-### 6.1 Перечень смежных систем
+## Перечень смежных систем
 
 <!-- AGENT: Create a table:
 | Смежная система | Протокол | Назначение интеграции | Критичность |
@@ -358,7 +361,7 @@ Source: doc-researcher ARCHITECTURE, analysis of HTTP clients, message queue con
 
 <!-- AGENT: Fill in based on actual integrations found in the codebase -->
 
-### 6.2 Контроль взаимодействия
+## Контроль взаимодействия
 
 <!-- AGENT: How to verify external integrations are working:
 1. Health check commands for each integration

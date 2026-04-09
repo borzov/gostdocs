@@ -1,11 +1,14 @@
-# {system_name}. Руководство пользователя
+---
+title: "{system_name}. Руководство пользователя"
+lang: ru-RU
+---
 
-<!-- GOST mode: strict | Template version: 1.0 -->
+<!-- GOST mode: strict | Template version: 1.1 -->
 <!-- Reference: РД 50-34.698-90, ГОСТ Р 59795-2021 -->
 
-## 1 Введение
+# Введение
 
-### 1.1 Область применения
+## Область применения
 
 <!-- AGENT: Describe the scope of this document. What system it covers, what version, who is the intended audience. Source: spec-reader SYSTEM PURPOSE + doc-researcher SYSTEM OVERVIEW -->
 
@@ -15,7 +18,7 @@
 
 Руководство распространяется на версию {version} системы и все последующие версии до выпуска нового руководства.
 
-### 1.2 Краткое описание возможностей
+## Краткое описание возможностей
 
 <!-- AGENT: List main capabilities of the system in 3-5 paragraphs. Source: spec-reader FUNCTIONAL REQUIREMENTS + doc-researcher FEATURES.
 Structure this section as a high-level overview of what the system does.
@@ -35,7 +38,7 @@ Do NOT list technical implementation details here — focus on user-facing funct
 
 — информирование пользователей о значимых событиях системы.
 
-### 1.3 Уровень подготовки пользователя
+## Уровень подготовки пользователя
 
 <!-- AGENT: Describe required user knowledge. Source: spec-reader CONSTRAINTS.
 Include ALL of the following categories:
@@ -55,7 +58,7 @@ Adjust the level based on the target audience identified in spec-reader output. 
 
 — знакомство с настоящим руководством пользователя.
 
-### 1.4 Перечень эксплуатационной документации
+## Перечень эксплуатационной документации
 
 <!-- AGENT: List all related documents being generated. Enumerate every document from the generation manifest. Use the format below. Adjust the list based on what documents are actually being produced. -->
 
@@ -66,9 +69,9 @@ Adjust the level based on the target audience identified in spec-reader output. 
 - {system_name}. Руководство оператора;
 - {system_name}. Техническое описание.
 
-## 2 Назначение и условия применения
+# Назначение и условия применения
 
-### 2.1 Виды деятельности и функции
+## Виды деятельности и функции
 
 <!-- AGENT: For each user role found in the system, describe:
 1. Role name and its purpose
@@ -81,7 +84,7 @@ If roles are not explicitly defined, infer them from route guards, middleware, o
 
 Example structure per role:
 
-#### 2.1.N {Название роли}
+### {Название роли}
 
 Пользователь с ролью «{role}» выполняет следующие виды деятельности:
 - ...
@@ -90,7 +93,7 @@ Example structure per role:
 - ...
 -->
 
-#### 2.1.1 Обычный пользователь
+### Обычный пользователь
 
 Пользователь с базовыми правами доступа выполняет следующие виды деятельности:
 
@@ -100,7 +103,7 @@ Example structure per role:
 
 — формирование отчётов в рамках своих полномочий.
 
-#### 2.1.2 Администратор
+### Администратор
 
 Пользователь с расширенными правами доступа выполняет следующие виды деятельности:
 
@@ -110,7 +113,7 @@ Example structure per role:
 
 — просмотр журналов действий пользователей.
 
-### 2.2 Условия применения
+## Условия применения
 
 <!-- AGENT: List ALL technical requirements for using the system. Source: doc-researcher SYSTEM OVERVIEW tech stack, deployment info.
 MUST include:
@@ -131,9 +134,9 @@ Present as a structured list or table. -->
 | JavaScript | Включён в настройках браузера |
 | Cookies | Разрешены для домена системы |
 
-## 3 Подготовка к работе
+# Подготовка к работе
 
-### 3.1 Состав и содержание дистрибутива
+## Состав и содержание дистрибутива
 
 <!-- AGENT: Describe what the user receives to start working.
 - For web applications: state that no local installation is required, access is through a browser.
@@ -143,7 +146,7 @@ Source: doc-researcher DEPLOYMENT -->
 
 Система «{system_name}» является веб-приложением и не требует установки дополнительного программного обеспечения на рабочее место пользователя. Доступ осуществляется через веб-браузер по адресу, предоставленному администратором системы.
 
-### 3.2 Порядок загрузки и запуска системы
+## Порядок загрузки и запуска системы
 
 <!-- AGENT: Provide step-by-step instructions to access the system for the first time.
 Each step MUST include:
@@ -168,7 +171,7 @@ If the system uses SSO, describe the SSO flow instead. -->
 
 5. После успешной авторизации откроется главная страница системы.
 
-### 3.3 Проверка работоспособности
+## Проверка работоспособности
 
 <!-- AGENT: Describe how to verify the system works after login.
 Include:
@@ -193,17 +196,17 @@ Source: doc-researcher ROUTES (main/dashboard route) -->
 
 — при переходе по пунктам меню открываются соответствующие разделы системы.
 
-## 4 Описание операций
+# Описание операций
 
 <!-- AGENT: This is the MAIN section of the document. It must cover ALL user-facing functionality.
 
 GENERATION RULES:
-1. Create subsection 4.N for EACH functional module/page discovered by doc-researcher.
+1. Create a subsection for EACH functional module/page discovered by doc-researcher.
 2. Order modules by user workflow priority (most commonly used first).
 3. Each module MUST have exactly three sub-subsections:
-   - 4.N.1 Описание — purpose of the module, when to use it, who uses it
-   - 4.N.2 Порядок действий — numbered step-by-step instructions with screenshots
-   - 4.N.3 Ожидаемый результат — what the user sees after completing the operation
+   - Описание — purpose of the module, when to use it, who uses it
+   - Порядок действий — numbered step-by-step instructions with screenshots
+   - Ожидаемый результат — what the user sees after completing the operation
 
 SCREENSHOT RULES:
 - Reference screenshots from manifest.json using relative paths: ../screenshots/{name}.png
@@ -220,19 +223,19 @@ Source: doc-researcher FEATURES + ROUTES. Generate subsections dynamically based
 
 Example for one module: -->
 
-### 4.1 Управление пользователями
+## Управление пользователями
 
-#### 4.1.1 Описание
+### Описание
 
 Модуль управления пользователями предназначен для создания, редактирования и удаления учётных записей пользователей системы. Модуль доступен пользователям с ролью «Администратор».
 
-#### 4.1.2 Порядок действий
+### Порядок действий
 
 **Создание нового пользователя:**
 
 1. В главном меню выберите раздел «Пользователи».
 
-   ![Переход в раздел пользователей](../screenshots/4.1_users_menu.png)
+   ![Переход в раздел пользователей](../screenshots/users_menu.png)
 
 2. Нажмите кнопку «Добавить пользователя».
 
@@ -252,16 +255,16 @@ Example for one module: -->
 
 5. Нажмите кнопку «Сохранить».
 
-#### 4.1.3 Ожидаемый результат
+### Ожидаемый результат
 
 После сохранения новый пользователь появится в списке пользователей. На указанный адрес электронной почты будет отправлено письмо с учётными данными для входа в систему.
 
-<!-- AGENT: Continue generating subsections 4.2, 4.3, ... 4.N for every remaining module.
+<!-- AGENT: Continue generating subsections for every remaining module.
 Each must follow the same three-part structure (Описание / Порядок действий / Ожидаемый результат). -->
 
-## 5 Аварийные ситуации
+# Аварийные ситуации
 
-### 5.1 Типичные ошибки и способы устранения
+## Типичные ошибки и способы устранения
 
 <!-- AGENT: Create a comprehensive table of user-facing errors.
 Source: doc-researcher analysis of error handling, HTTP status codes, validation messages.
@@ -280,7 +283,7 @@ Add at least 5-7 common errors. Include HTTP errors (401, 403, 404, 500), valida
 | 4 | «Ошибка сервера» | Внутренняя ошибка системы | Повторите операцию через несколько минут. При повторении ошибки обратитесь к администратору |
 | 5 | «Сессия истекла» | Превышено время бездействия | Выполните повторный вход в систему |
 
-### 5.2 Действия при потере связи с сервером
+## Действия при потере связи с сервером
 
 <!-- AGENT: Provide standard instructions for connection loss. Include:
 1. How to recognize connection loss (error messages, loading indicators)
@@ -300,7 +303,7 @@ Add at least 5-7 common errors. Include HTTP errors (401, 403, 404, 500), valida
 
 5. При длительной недоступности системы обратитесь к администратору.
 
-### 5.3 Восстановление после сбоев
+## Восстановление после сбоев
 
 <!-- AGENT: Describe recovery procedures for common failure scenarios:
 1. Browser crash — re-open, check for auto-saved data
@@ -318,9 +321,9 @@ Source: doc-researcher analysis of data persistence mechanisms -->
 
 4. Если обнаружена потеря данных, обратитесь к администратору системы для восстановления из резервной копии.
 
-## 6 Рекомендации по освоению
+# Рекомендации по освоению
 
-### 6.1 Методические рекомендации
+## Методические рекомендации
 
 <!-- AGENT: Suggest a structured learning path for new users:
 1. Start with basic navigation and layout orientation
@@ -357,13 +360,13 @@ Estimate time for each stage. -->
 
 — Ознакомьтесь с функциями уведомлений.
 
-### 6.2 Примеры использования
+## Примеры использования
 
 <!-- AGENT: Provide 2-3 realistic end-to-end usage scenarios.
 Each scenario MUST include:
 1. Business context (why the user performs this action)
 2. Prerequisites (what must be set up beforehand)
-3. Step-by-step walkthrough referencing sections from Chapter 4
+3. Step-by-step walkthrough referencing sections from the operations chapter
 4. Expected outcome
 
 Source: spec-reader BUSINESS PROCESSES + doc-researcher FEATURES.
@@ -373,9 +376,9 @@ Choose the most common real-world workflows. -->
 
 Сотрудник получает задачу зарегистрировать в системе новую запись.
 
-1. Войдите в систему (см. раздел 3.2).
+1. Войдите в систему (см. раздел «Порядок загрузки и запуска системы»).
 
-2. Перейдите в соответствующий раздел (см. раздел 4.N).
+2. Перейдите в соответствующий раздел (см. раздел «Описание операций»).
 
 3. Создайте новую запись, заполнив необходимые поля.
 
@@ -385,9 +388,9 @@ Choose the most common real-world workflows. -->
 
 Руководитель подразделения формирует отчёт за прошедший месяц.
 
-1. Войдите в систему (см. раздел 3.2).
+1. Войдите в систему (см. раздел «Порядок загрузки и запуска системы»).
 
-2. Перейдите в раздел отчётов (см. раздел 4.N).
+2. Перейдите в раздел отчётов (см. раздел «Описание операций»).
 
 3. Укажите период формирования отчёта.
 

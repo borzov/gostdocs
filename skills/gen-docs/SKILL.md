@@ -189,16 +189,30 @@ For each selected document type:
 3. Read the screenshot manifest
 4. Generate the full Markdown document:
    - Fill every section with real content from research results
-   - Insert screenshot references: `![Description](../screenshots/{filename})`
+   - Insert screenshot references: `![Рисунок — Описание](../screenshots/{filename})`
    - For strict mode: generate title page from `title-page.md` template with metadata
    - Write comprehensive, detailed content — NOT placeholder text
    - All user-facing text in Russian
    - Technical terms and code examples in English
 
+**CRITICAL — Markdown formatting rules:**
+- **DO NOT put numbers in headings.** Use `# Введение`, NOT `# 1 Введение`. Pandoc adds section numbers automatically via `--number-sections`.
+- **DO NOT use `# Title` then `## Subtitle` as first two headings.** Start directly with `# Введение` as the first section. The document title comes from YAML frontmatter `title:` field.
+- **Figure captions:** Use pandoc implicit_figures format: `![Рисунок — Описание](path.png)` — pandoc auto-numbers figures.
+- **Table captions:** Place caption BEFORE the table using `: Описание таблицы` syntax (pandoc table caption).
+- **All headings in Russian.** No English headings whatsoever.
+- **YAML frontmatter** at the top of every generated file:
+  ```yaml
+  ---
+  title: "Название системы. Руководство пользователя"
+  lang: ru-RU
+  ---
+  ```
+
 **Quality requirements for generated content:**
 - Each section minimum 200-500 words (except short structural sections)
 - Step-by-step instructions must include numbered steps with expected results
-- Every screenshot must have a descriptive caption
+- Every screenshot must have a descriptive caption in Russian
 - Error handling sections must list specific errors with solutions
 - Configuration sections must describe every parameter
 
@@ -215,10 +229,20 @@ pandoc \
   --reference-doc={skill_path}/templates/reference-{gost_mode}.docx \
   --toc --toc-depth=3 \
   --number-sections \
+  -M lang=ru-RU \
+  -M toc-title="Содержание" \
   --resource-path={project_path}/docs/screenshots \
   -o {project_path}/docs/output/{doc_name}.docx \
   {project_path}/docs/generated/{doc_name}.md
 ```
+
+**Important pandoc flags explained:**
+- `-M toc-title="Содержание"` — Russian title instead of "Table of Contents"
+- `--number-sections` — automatic section numbering (1, 1.1, 1.2, etc.)
+- `-M lang=ru-RU` — Russian language metadata for localization
+- `--reference-doc` — applies GOST-compliant styles (fonts, margins, spacing)
+
+**CRITICAL:** The Markdown source MUST NOT contain manual section numbers in headings. Use `# Введение`, NOT `# 1 Введение`. Pandoc `--number-sections` handles all numbering.
 
 Create output directory if it doesn't exist: `mkdir -p {project_path}/docs/output`
 
