@@ -202,6 +202,9 @@ For each selected document type:
 - **Table captions:** Place caption BEFORE the table using `: Описание таблицы` syntax (pandoc table caption).
 - **All headings in Russian.** No English headings whatsoever.
 - **NO horizontal rules.** Do NOT use `---` or `***` as section separators. They create ugly HR lines in DOCX.
+- **NO emoji or special Unicode characters.** Do NOT use checkboxes (☑☐), icons, or emoji. Use plain text: `[V] Включено`, `[ ] Выключено`.
+- **Bold text sparingly.** Only bold key terms on FIRST mention, button/menu names in instructions, and table header row. Do NOT bold repeated words or phrases already established in context.
+- **Table headers:** The first row of every table MUST use bold. This is handled by postprocessing.
 - **Table captions:** Place caption BEFORE the table using pandoc syntax: `: Таблица — Описание` on a line by itself before the table.
 - **YAML frontmatter** at the top of every generated file:
   ```yaml

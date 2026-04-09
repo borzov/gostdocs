@@ -21,6 +21,7 @@ import sys
 from pathlib import Path
 
 from docx import Document
+from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Cm, Emu, Mm, Pt
@@ -74,11 +75,15 @@ def add_borders_to_table(table) -> None:
 
 
 def fix_table_cells(table) -> None:
-    """Remove first-line indent from all paragraphs in table cells."""
-    for row in table.rows:
+    """Remove first-line indent from all cells. Bold first row (header)."""
+    for ri, row in enumerate(table.rows):
         for cell in row.cells:
             for paragraph in cell.paragraphs:
                 set_paragraph_indent_zero(paragraph._element)
+                # Bold header row
+                if ri == 0:
+                    for run in paragraph.runs:
+                        run.bold = True
 
 
 def fix_images(doc: Document) -> None:
@@ -150,7 +155,11 @@ def number_figures(doc: Document) -> None:
 
 
 def fix_toc(doc: Document) -> None:
-    """Fix TOC formatting — remove indents, fix alignment."""
+    """Fix TOC formatting — add proper tab stops, remove indents."""
+    # Content width in twips: 180mm ≈ 10205 twips
+    content_width_twips = 10205
+    toc_left_indents = {0: 0, 1: 480, 2: 960}  # level -> left indent twips
+
     body = doc.element.body
 
     # Find SDT (structured document tag) containing TOC
@@ -162,43 +171,65 @@ def fix_toc(doc: Document) -> None:
         for p in sdt_content.findall(qn("w:p")):
             ppr = p.find(qn("w:pPr"))
             if ppr is None:
-                continue
+                ppr = OxmlElement("w:pPr")
+                p.insert(0, ppr)
 
-            # Remove first-line indent from TOC entries
-            ind = ppr.find(qn("w:ind"))
-            if ind is not None:
-                # Remove first line indent
-                for attr in ("w:firstLine", "w:firstLineChars"):
+            # Determine TOC level from style
+            ps = ppr.find(qn("w:pStyle"))
+            style_val = ps.get(qn("w:val")) if ps is not None else ""
+            level = -1
+            if style_val == "TOC1":
+                level = 0
+            elif style_val == "TOC2":
+                level = 1
+            elif style_val == "TOC3":
+                level = 2
+            elif "TOC" in style_val and "Heading" not in style_val:
+                level = 0
+
+            if level >= 0:
+                # Remove existing tabs
+                existing_tabs = ppr.find(qn("w:tabs"))
+                if existing_tabs is not None:
+                    ppr.remove(existing_tabs)
+
+                # Add right-aligned tab with dot leader
+                tabs = OxmlElement("w:tabs")
+                tab = OxmlElement("w:tab")
+                tab.set(qn("w:val"), "right")
+                tab.set(qn("w:leader"), "dot")
+                tab.set(qn("w:pos"), str(content_width_twips))
+                tabs.append(tab)
+                ppr.append(tabs)
+
+                # Set proper indent
+                ind = ppr.find(qn("w:ind"))
+                if ind is None:
+                    ind = OxmlElement("w:ind")
+                    ppr.append(ind)
+                left = toc_left_indents.get(level, 0)
+                ind.set(qn("w:left"), str(left))
+                ind.set(qn("w:firstLine"), "0")
+                # Remove hanging indent if present
+                for attr in ("w:hanging", "w:firstLineChars"):
                     qattr = qn(attr)
                     if qattr in ind.attrib:
                         del ind.attrib[qattr]
-            else:
-                # Add explicit ind with firstLine=0
-                ind = OxmlElement("w:ind")
-                ind.set(qn("w:firstLine"), "0")
-                ppr.append(ind)
 
-            # Ensure left alignment (remove right alignment if set)
+            # Remove right/end alignment
             jc = ppr.find(qn("w:jc"))
             if jc is not None:
                 val = jc.get(qn("w:val"))
                 if val in ("right", "end"):
                     ppr.remove(jc)
 
-    # Also fix TOC styles in the document
-    for style_name in ("TOC Heading", "TOC 1", "TOC 2", "TOC 3"):
-        if style_name in doc.styles:
-            style = doc.styles[style_name]
-            style.paragraph_format.first_line_indent = None
-            # Force indent to 0 on style element
-            style_ppr = style.element.find(qn("w:pPr"))
-            if style_ppr is not None:
-                ind = style_ppr.find(qn("w:ind"))
-                if ind is not None:
-                    for attr in ("w:firstLine", "w:firstLineChars"):
-                        qattr = qn(attr)
-                        if qattr in ind.attrib:
-                            del ind.attrib[qattr]
+            # firstLine=0 for TOC heading too
+            if "Heading" in style_val:
+                ind = ppr.find(qn("w:ind"))
+                if ind is None:
+                    ind = OxmlElement("w:ind")
+                    ppr.append(ind)
+                ind.set(qn("w:firstLine"), "0")
 
 
 def fix_compact_style(doc: Document) -> None:
@@ -207,7 +238,6 @@ def fix_compact_style(doc: Document) -> None:
         if style_name not in doc.styles:
             continue
         style = doc.styles[style_name]
-        # Remove first-line indent from style definition
         style_ppr = style.element.find(qn("w:pPr"))
         if style_ppr is not None:
             ind = style_ppr.find(qn("w:ind"))
@@ -216,12 +246,82 @@ def fix_compact_style(doc: Document) -> None:
                     qattr = qn(attr)
                     if qattr in ind.attrib:
                         del ind.attrib[qattr]
-                # Set explicit 0
                 ind.set(qn("w:firstLine"), "0")
             else:
                 ind = OxmlElement("w:ind")
                 ind.set(qn("w:firstLine"), "0")
                 style_ppr.append(ind)
+
+
+def ensure_toc_styles(doc: Document, font_name: str, body_size: Pt) -> None:
+    """Ensure TOC 1/2/3 styles exist with right tab stop and dot leader.
+
+    When Word updates the TOC field, it uses these styles. If they're
+    missing or misconfigured, the TOC looks broken.
+    """
+    from docx.enum.style import WD_STYLE_TYPE
+
+    content_width_twips = 10205
+    toc_configs = [
+        ("TOC 1", 0),       # no indent
+        ("TOC 2", 480),     # ~8mm indent
+        ("TOC 3", 960),     # ~16mm indent
+    ]
+
+    for style_name, left_indent in toc_configs:
+        # Get or create the style
+        if style_name in doc.styles:
+            style = doc.styles[style_name]
+        else:
+            style = doc.styles.add_style(style_name, WD_STYLE_TYPE.PARAGRAPH)
+            style.base_style = doc.styles["Normal"]
+
+        style.font.name = font_name
+        style.font.size = body_size
+        style.paragraph_format.first_line_indent = None
+        style.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        style.paragraph_format.space_before = Pt(2)
+        style.paragraph_format.space_after = Pt(2)
+
+        # Set font on all faces
+        rpr = style.element.get_or_add_rPr()
+        rfonts = rpr.find(qn("w:rFonts"))
+        if rfonts is None:
+            rfonts = OxmlElement("w:rFonts")
+            rpr.insert(0, rfonts)
+        for attr in ("w:ascii", "w:hAnsi", "w:eastAsia", "w:cs"):
+            rfonts.set(qn(attr), font_name)
+        for theme_attr in ("w:asciiTheme", "w:hAnsiTheme", "w:eastAsiaTheme", "w:cstheme"):
+            qattr = qn(theme_attr)
+            if qattr in rfonts.attrib:
+                del rfonts.attrib[qattr]
+
+        # Configure pPr
+        style_ppr = style.element.find(qn("w:pPr"))
+        if style_ppr is None:
+            style_ppr = OxmlElement("w:pPr")
+            style.element.append(style_ppr)
+
+        # Remove existing tabs and ind
+        for tag in ("w:tabs", "w:ind"):
+            existing = style_ppr.find(qn(tag))
+            if existing is not None:
+                style_ppr.remove(existing)
+
+        # Add right tab with dot leader
+        tabs = OxmlElement("w:tabs")
+        tab = OxmlElement("w:tab")
+        tab.set(qn("w:val"), "right")
+        tab.set(qn("w:leader"), "dot")
+        tab.set(qn("w:pos"), str(content_width_twips))
+        tabs.append(tab)
+        style_ppr.append(tabs)
+
+        # Set indent
+        ind = OxmlElement("w:ind")
+        ind.set(qn("w:left"), str(left_indent))
+        ind.set(qn("w:firstLine"), "0")
+        style_ppr.append(ind)
 
 
 def fix_title_font(doc: Document, font_name: str) -> None:
@@ -297,6 +397,7 @@ def main() -> None:
     # Fix styles first (affects all paragraphs)
     fix_compact_style(doc)
     fix_title_font(doc, font_name)
+    ensure_toc_styles(doc, font_name, Pt(14) if font_name == "Times New Roman" else Pt(12))
 
     # Fix TOC
     fix_toc(doc)

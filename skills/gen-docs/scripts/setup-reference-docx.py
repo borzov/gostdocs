@@ -153,7 +153,11 @@ def configure_styles(doc: Document, strict: bool = True) -> Document:
         bs.paragraph_format.first_line_indent = None  # No indent — prevents table/image issues
         set_font_all_faces(bs.element, font_name)
 
-    # --- TOC styles — LEFT aligned ---
+    # --- TOC styles — LEFT aligned with right tab stop for page numbers ---
+    # Content width in twips: 180mm = 10205 twips
+    content_width_twips = 10205
+    toc_indents = {"TOC 1": 0, "TOC 2": 480, "TOC 3": 960}  # twips
+
     for toc_name in ("TOC Heading", "TOC 1", "TOC 2", "TOC 3"):
         if toc_name not in doc.styles:
             continue
@@ -161,12 +165,38 @@ def configure_styles(doc: Document, strict: bool = True) -> Document:
         toc.font.name = font_name
         toc.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.LEFT
         toc.paragraph_format.first_line_indent = None
+        set_font_all_faces(toc.element, font_name)
+
         if toc_name == "TOC Heading":
             toc.font.size = Pt(16) if strict else Pt(14)
             toc.font.bold = True
         else:
             toc.font.size = body_size
-        set_font_all_faces(toc.element, font_name)
+            # Add right-aligned tab stop with dot leader for page numbers
+            toc_ppr = toc.element.find(qn("w:pPr"))
+            if toc_ppr is None:
+                toc_ppr = OxmlElement("w:pPr")
+                toc.element.append(toc_ppr)
+            # Remove existing tabs
+            existing_tabs = toc_ppr.find(qn("w:tabs"))
+            if existing_tabs is not None:
+                toc_ppr.remove(existing_tabs)
+            # Add right tab with dot leader
+            tabs = OxmlElement("w:tabs")
+            tab = OxmlElement("w:tab")
+            tab.set(qn("w:val"), "right")
+            tab.set(qn("w:leader"), "dot")
+            tab.set(qn("w:pos"), str(content_width_twips))
+            tabs.append(tab)
+            toc_ppr.append(tabs)
+            # Set left indent for hierarchy
+            ind = toc_ppr.find(qn("w:ind"))
+            if ind is None:
+                ind = OxmlElement("w:ind")
+                toc_ppr.append(ind)
+            indent = toc_indents.get(toc_name, 0)
+            ind.set(qn("w:left"), str(indent))
+            ind.set(qn("w:firstLine"), "0")
 
     # --- Figure / Image styles — NO indent ---
     for fig_name in ("Figure", "Captioned Figure", "Image Caption"):
