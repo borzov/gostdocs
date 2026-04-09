@@ -139,6 +139,8 @@ def configure_styles(doc: Document, strict: bool = True) -> Document:
         set_font_all_faces(style.element, font_name)
 
     # --- Body Text styles (pandoc uses these for regular paragraphs) ---
+    # NOTE: Do NOT set first_line_indent on these styles — it bleeds into
+    # table cells and image paragraphs. Only Normal gets the indent.
     for body_style_name in ("Body Text", "First Paragraph", "Compact"):
         if body_style_name not in doc.styles:
             continue
@@ -148,7 +150,7 @@ def configure_styles(doc: Document, strict: bool = True) -> Document:
         bs.paragraph_format.line_spacing_rule = WD_LINE_SPACING.MULTIPLE
         bs.paragraph_format.line_spacing = line_spacing
         bs.paragraph_format.space_after = Pt(0)
-        bs.paragraph_format.first_line_indent = Cm(1.25) if strict else None
+        bs.paragraph_format.first_line_indent = None  # No indent — prevents table/image issues
         set_font_all_faces(bs.element, font_name)
 
     # --- TOC styles — LEFT aligned ---
