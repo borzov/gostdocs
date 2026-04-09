@@ -97,6 +97,9 @@ def configure_styles(doc: Document, strict: bool = True) -> Document:
         section.page_height = Mm(297)
 
     # --- Normal (base) ---
+    # IMPORTANT: Do NOT set first_line_indent on Normal — it bleeds into TOC,
+    # tables, figures, and every other element. Paragraph indent is applied
+    # via postprocess-docx.py only to body text paragraphs.
     normal = doc.styles["Normal"]
     normal.font.name = font_name
     normal.font.size = body_size
@@ -104,7 +107,7 @@ def configure_styles(doc: Document, strict: bool = True) -> Document:
     normal.paragraph_format.line_spacing = line_spacing
     normal.paragraph_format.space_after = Pt(0)
     normal.paragraph_format.space_before = Pt(0)
-    normal.paragraph_format.first_line_indent = Cm(1.25) if strict else None
+    normal.paragraph_format.first_line_indent = None
     set_font_all_faces(normal.element, font_name)
 
     # --- Headings ---

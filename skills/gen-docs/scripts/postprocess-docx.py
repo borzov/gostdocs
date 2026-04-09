@@ -380,6 +380,61 @@ def replace_emoji(doc: Document) -> None:
                                     run.text = run.text.replace(emoji, replacement)
 
 
+def add_body_text_indent(doc: Document) -> None:
+    """Add 1.25cm first-line indent to body text paragraphs only.
+
+    We do NOT set this on the Normal style (it bleeds into TOC, tables,
+    figures). Instead we apply it per-paragraph to text-only paragraphs.
+    """
+    skip_styles = {
+        "Title", "Subtitle",
+        "Heading 1", "Heading 2", "Heading 3", "Heading 4",
+        "TOC Heading", "TOC 1", "TOC 2", "TOC 3",
+        "Caption", "Image Caption", "Table Caption",
+        "Figure", "Captioned Figure",
+        "Source Code",
+        "Header", "Footer",
+    }
+    indent_val = "709"  # 1.25cm in twips
+
+    for paragraph in doc.paragraphs:
+        style_name = paragraph.style.name if paragraph.style else ""
+
+        # Skip non-body styles
+        if style_name in skip_styles:
+            continue
+
+        # Skip paragraphs with images
+        has_image = bool(paragraph._element.findall(f".//{qn('wp:inline')}") or
+                        paragraph._element.findall(f".//{qn('wp:anchor')}"))
+        if has_image:
+            continue
+
+        # Skip empty paragraphs
+        if not paragraph.text.strip():
+            continue
+
+        # Skip list items (they have their own indent)
+        ppr = paragraph._element.find(qn("w:pPr"))
+        if ppr is not None:
+            num_pr = ppr.find(qn("w:numPr"))
+            if num_pr is not None:
+                continue
+
+        # Apply first-line indent
+        if ppr is None:
+            ppr = OxmlElement("w:pPr")
+            paragraph._element.insert(0, ppr)
+        ind = ppr.find(qn("w:ind"))
+        if ind is None:
+            ind = OxmlElement("w:ind")
+            ppr.append(ind)
+        # Only set if not already explicitly set to 0 (e.g., by fix_table_cells)
+        current = ind.get(qn("w:firstLine"))
+        if current != "0":
+            ind.set(qn("w:firstLine"), indent_val)
+
+
 def main() -> None:
     if len(sys.argv) < 2:
         print(f"Usage: {sys.argv[0]} <input.docx> [--font 'Times New Roman']")
@@ -415,6 +470,10 @@ def main() -> None:
 
     # Replace emoji
     replace_emoji(doc)
+
+    # Add paragraph indent to body text only (strict GOST mode)
+    if font_name == "Times New Roman":
+        add_body_text_indent(doc)
 
     doc.save(str(docx_path))
     print(f"Post-processed: {docx_path}")
