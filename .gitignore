@@ -1,0 +1,7 @@
+node_modules/
+.DS_Store
+*.log
+.superpowers/
+docs/output/
+docs/screenshots/
+docs/generated/

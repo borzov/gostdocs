@@ -1,0 +1,20 @@
+{
+  "name": "gen-docs",
+  "version": "1.0.0",
+  "description": "GOST-compliant documentation generator for information systems — user guides, admin guides, operator guides, technical descriptions with automatic screenshots",
+  "author": {
+    "name": "borzov"
+  },
+  "license": "MIT",
+  "keywords": [
+    "claude-code-plugin",
+    "documentation",
+    "gost",
+    "user-guide",
+    "admin-guide",
+    "playwright",
+    "screenshots",
+    "docx",
+    "pandoc"
+  ]
+}
