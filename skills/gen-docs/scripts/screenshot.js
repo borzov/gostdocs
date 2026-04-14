@@ -80,6 +80,80 @@ async function authenticate(page, config) {
   console.log('  Authentication complete.');
 }
 
+/**
+ * Auto-detect login form field selectors from the current page DOM.
+ * Returns null if no password field is found (not a login page).
+ *
+ * @param {import('playwright').Page} page
+ * @returns {Promise<{usernameSelector: string, passwordSelector: string, submitSelector: string}|null>}
+ */
+async function autoDetectFormFields(page) {
+  const hasPassword = await page.$('input[type=password]');
+  if (!hasPassword) return null;
+
+  const passwordSelector = await page.evaluate(() => {
+    const el = document.querySelector('input[type=password]');
+    if (!el) return null;
+    if (el.id) return `#${el.id}`;
+    if (el.name) return `input[name="${el.name}"]`;
+    return 'input[type=password]';
+  });
+
+  const usernameSelector = await page.evaluate(() => {
+    const inputs = Array.from(
+      document.querySelectorAll('input[type=text], input[type=email]')
+    );
+    const el = inputs[inputs.length - 1];
+    if (!el) return null;
+    if (el.id) return `#${el.id}`;
+    if (el.name) return `input[name="${el.name}"]`;
+    return 'input[type=email], input[type=text]';
+  });
+
+  const submitSelector = await page.evaluate(() => {
+    const btn = document.querySelector('button[type=submit], input[type=submit]');
+    if (!btn) return null;
+    if (btn.id) return `#${btn.id}`;
+    return 'button[type=submit]';
+  });
+
+  return { usernameSelector, passwordSelector, submitSelector };
+}
+
+/**
+ * Probe all routes in a clean (unauthenticated) browser context.
+ * Classifies each route as "public" or "auth_required".
+ *
+ * @param {Array<{id: string, path: string}>} pages
+ * @param {{baseUrl: string, timeout?: number, viewport?: object}} config
+ * @param {import('playwright').Browser} browser
+ * @returns {Promise<Record<string, 'public'|'auth_required'>>}
+ */
+async function probeRoutes(pages, config, browser) {
+  const viewport = config.viewport || { width: 1280, height: 800 };
+  const timeout = config.timeout || 30000;
+  const context = await browser.newContext({ viewport });
+  const page = await context.newPage();
+  const accessMap = {};
+
+  for (const pageConfig of pages) {
+    const requestedUrl = new URL(pageConfig.path, config.baseUrl).href;
+    try {
+      await page.goto(requestedUrl, { waitUntil: 'networkidle', timeout });
+      const finalPath = new URL(page.url()).pathname;
+      const requestedPath = new URL(requestedUrl).pathname;
+      const wasRedirected = finalPath !== requestedPath && finalPath !== requestedPath + '/';
+      const hasPasswordField = (await page.$('input[type=password]')) !== null;
+      accessMap[pageConfig.id] = (wasRedirected || hasPasswordField) ? 'auth_required' : 'public';
+    } catch {
+      accessMap[pageConfig.id] = 'public';
+    }
+  }
+
+  await context.close();
+  return accessMap;
+}
+
 async function captureScreenshot(page, pageConfig, config, outputDir) {
   const url = new URL(pageConfig.path, config.baseUrl).href;
   const filename = `${pageConfig.id}_${pageConfig.name}.png`;
@@ -207,3 +281,8 @@ run().catch((err) => {
   console.error(`Fatal error: ${err.message}`);
   process.exit(1);
 });
+
+// Export functions for unit testing
+if (require.main !== module) {
+  module.exports = { autoDetectFormFields, probeRoutes };
+}
