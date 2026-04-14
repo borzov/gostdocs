@@ -136,3 +136,193 @@ describe('probeRoutes', () => {
     expect(context.close).toHaveBeenCalledTimes(1);
   });
 });
+
+// ---------------------------------------------------------------------------
+// authenticate (refactored: takes BrowserContext, not page)
+// ---------------------------------------------------------------------------
+
+const { authenticate, captureRoleScreenshots } = require('../skills/gen-docs/scripts/screenshot');
+
+describe('authenticate', () => {
+  function makeAuthContext(finalUrlAfterLogin) {
+    const page = {
+      goto: jest.fn().mockResolvedValue(undefined),
+      fill: jest.fn().mockResolvedValue(undefined),
+      click: jest.fn().mockResolvedValue(undefined),
+      waitForLoadState: jest.fn().mockResolvedValue(undefined),
+      close: jest.fn().mockResolvedValue(undefined),
+      $: jest.fn().mockResolvedValue({}), // password field present
+      evaluate: jest.fn()
+        .mockResolvedValueOnce('#password')
+        .mockResolvedValueOnce('#email')
+        .mockResolvedValueOnce('button[type=submit]'),
+    };
+    return {
+      context: { newPage: jest.fn(async () => page) },
+      page,
+    };
+  }
+
+  test('fills form with provided selectors and submits', async () => {
+    const { context, page } = makeAuthContext();
+    const roleConfig = {
+      role: 'admin',
+      login_url: '/admin/login',
+      username: 'admin@test.com',
+      password: 'secret',
+      username_field: '#email',
+      password_field: '#password',
+      submit_button: 'button[type=submit]',
+    };
+    const config = { baseUrl: 'http://localhost:3000', timeout: 5000 };
+
+    await authenticate(context, roleConfig, config);
+
+    expect(page.goto).toHaveBeenCalledWith(
+      'http://localhost:3000/admin/login',
+      expect.any(Object)
+    );
+    expect(page.fill).toHaveBeenCalledWith('#email', 'admin@test.com');
+    expect(page.fill).toHaveBeenCalledWith('#password', 'secret');
+    expect(page.click).toHaveBeenCalledWith('button[type=submit]');
+    expect(page.close).toHaveBeenCalled();
+  });
+
+  test('auto-detects form fields when selectors are null', async () => {
+    const { context, page } = makeAuthContext();
+    const roleConfig = {
+      role: 'user',
+      login_url: '/login',
+      username: 'user@test.com',
+      password: 'pass',
+      username_field: null,
+      password_field: null,
+      submit_button: null,
+    };
+    const config = { baseUrl: 'http://localhost:3000', timeout: 5000 };
+
+    await authenticate(context, roleConfig, config);
+
+    // auto-detected selectors from mock evaluate calls: #password, #email, button[type=submit]
+    expect(page.fill).toHaveBeenCalledWith('#email', 'user@test.com');
+    expect(page.fill).toHaveBeenCalledWith('#password', 'pass');
+  });
+
+  test('throws when no login form found', async () => {
+    const page = {
+      goto: jest.fn().mockResolvedValue(undefined),
+      $: jest.fn().mockResolvedValue(null), // no password field
+      evaluate: jest.fn(),
+      close: jest.fn().mockResolvedValue(undefined),
+    };
+    const context = { newPage: jest.fn(async () => page) };
+    const roleConfig = {
+      role: 'admin',
+      login_url: '/login',
+      username: 'a',
+      password: 'b',
+      username_field: null,
+      password_field: null,
+      submit_button: null,
+    };
+    const config = { baseUrl: 'http://localhost:3000', timeout: 5000 };
+
+    await expect(authenticate(context, roleConfig, config)).rejects.toThrow('No login form found');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// captureRoleScreenshots
+// ---------------------------------------------------------------------------
+
+describe('captureRoleScreenshots', () => {
+  function makeBrowser() {
+    const page = {
+      goto: jest.fn().mockResolvedValue(undefined),
+      waitForTimeout: jest.fn().mockResolvedValue(undefined),
+      screenshot: jest.fn().mockResolvedValue(undefined),
+      $: jest.fn().mockResolvedValue(null),
+      evaluate: jest.fn(),
+      fill: jest.fn().mockResolvedValue(undefined),
+      click: jest.fn().mockResolvedValue(undefined),
+      waitForLoadState: jest.fn().mockResolvedValue(undefined),
+      close: jest.fn().mockResolvedValue(undefined),
+      setDefaultTimeout: jest.fn(),
+    };
+    const context = {
+      newPage: jest.fn(async () => page),
+      close: jest.fn().mockResolvedValue(undefined),
+    };
+    const browser = {
+      newContext: jest.fn(async () => context),
+    };
+    return { browser, context, page };
+  }
+
+  test('guest role skips auth_required routes', async () => {
+    const { browser, page } = makeBrowser();
+    const roleConfig = { role: 'guest', credentials: null };
+    const pages = [
+      { id: 'home', path: '/', name: 'home' },
+      { id: 'dashboard', path: '/dashboard', name: 'dashboard' },
+    ];
+    const accessMap = { home: 'public', dashboard: 'auth_required' };
+    const config = { baseUrl: 'http://localhost:3000', timeout: 5000 };
+
+    const { results } = await captureRoleScreenshots(
+      roleConfig, pages, accessMap, config, browser, '/tmp/screenshots'
+    );
+
+    // Only 'home' captured; 'dashboard' skipped for guest
+    expect(results).toHaveLength(1);
+    expect(results[0].id).toBe('home');
+  });
+
+  test('authenticated role captures both public and auth_required routes', async () => {
+    const { browser, page } = makeBrowser();
+    page.$.mockResolvedValue({}); // password field exists for auth
+    page.evaluate
+      .mockResolvedValueOnce('#password')
+      .mockResolvedValueOnce('#email')
+      .mockResolvedValueOnce('button[type=submit]');
+
+    const roleConfig = {
+      role: 'admin',
+      login_url: '/login',
+      username: 'admin',
+      password: 'pass',
+      username_field: '#email',
+      password_field: '#password',
+      submit_button: 'button[type=submit]',
+    };
+    const pages = [
+      { id: 'home', path: '/', name: 'home' },
+      { id: 'dashboard', path: '/dashboard', name: 'dashboard' },
+    ];
+    const accessMap = { home: 'public', dashboard: 'auth_required' };
+    const config = { baseUrl: 'http://localhost:3000', timeout: 5000 };
+
+    const { results } = await captureRoleScreenshots(
+      roleConfig, pages, accessMap, config, browser, '/tmp/screenshots'
+    );
+
+    expect(results).toHaveLength(2);
+    expect(results.map((r) => r.id)).toEqual(['home', 'dashboard']);
+  });
+
+  test('closes context after session even if errors occur', async () => {
+    const { browser, context, page } = makeBrowser();
+    page.goto.mockRejectedValue(new Error('network error'));
+
+    const roleConfig = { role: 'guest', credentials: null };
+    const pages = [{ id: 'home', path: '/', name: 'home' }];
+    const accessMap = { home: 'public' };
+    const config = { baseUrl: 'http://localhost:3000', timeout: 5000 };
+
+    await captureRoleScreenshots(
+      roleConfig, pages, accessMap, config, browser, '/tmp/screenshots'
+    );
+
+    expect(context.close).toHaveBeenCalledTimes(1);
+  });
+});

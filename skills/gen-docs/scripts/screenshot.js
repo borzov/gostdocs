@@ -63,21 +63,47 @@ async function readConfig(configPath) {
   });
 }
 
-async function authenticate(page, config) {
-  const { auth, baseUrl } = config;
-  if (!auth) return;
+/**
+ * Authenticate a browser context using role credentials.
+ * Opens a temporary page for login, fills the form, submits, then closes the page.
+ * Auth cookies are stored in the context and reused for all subsequent pages.
+ *
+ * @param {import('playwright').BrowserContext} context
+ * @param {{role: string, login_url?: string, username: string, password: string,
+ *          username_field?: string, password_field?: string, submit_button?: string}} roleConfig
+ * @param {{baseUrl: string, timeout?: number}} config
+ */
+async function authenticate(context, roleConfig, config) {
+  const loginUrl = new URL(roleConfig.login_url || '/login', config.baseUrl).href;
+  const timeout = config.timeout || 30000;
 
-  const loginUrl = new URL(auth.loginUrl, baseUrl).href;
-  console.log(`  Authenticating at ${loginUrl}...`);
+  console.log(`  [${roleConfig.role}] Authenticating at ${loginUrl}...`);
 
-  await page.goto(loginUrl, { waitUntil: 'networkidle', timeout: config.timeout || 30000 });
+  const page = await context.newPage();
+  await page.goto(loginUrl, { waitUntil: 'networkidle', timeout });
 
-  await page.fill(auth.usernameField, auth.username);
-  await page.fill(auth.passwordField, auth.password);
-  await page.click(auth.submitButton);
+  let usernameSelector = roleConfig.username_field || null;
+  let passwordSelector = roleConfig.password_field || null;
+  let submitSelector = roleConfig.submit_button || null;
 
-  await page.waitForLoadState('networkidle', { timeout: config.timeout || 30000 });
-  console.log('  Authentication complete.');
+  if (!usernameSelector || !passwordSelector || !submitSelector) {
+    const detected = await autoDetectFormFields(page);
+    if (!detected) {
+      await page.close();
+      throw new Error(`No login form found at ${loginUrl}`);
+    }
+    usernameSelector = usernameSelector || detected.usernameSelector;
+    passwordSelector = passwordSelector || detected.passwordSelector;
+    submitSelector = submitSelector || detected.submitSelector;
+  }
+
+  await page.fill(usernameSelector, roleConfig.username);
+  await page.fill(passwordSelector, roleConfig.password);
+  await page.click(submitSelector);
+  await page.waitForLoadState('networkidle', { timeout });
+  await page.close();
+
+  console.log(`  [${roleConfig.role}] Authentication complete.`);
 }
 
 /**
@@ -155,33 +181,107 @@ async function probeRoutes(pages, config, browser) {
   return accessMap;
 }
 
-async function captureScreenshot(page, pageConfig, config, outputDir) {
+/**
+ * Capture a single page screenshot, saving to `outputDir/{filename}`.
+ *
+ * @param {import('playwright').Page} page
+ * @param {{id: string, path: string, name: string, title?: string, fullPage?: boolean}} pageConfig
+ * @param {{baseUrl: string, waitAfterNavigation?: number, timeout?: number}} config
+ * @param {string} outputDir  - already includes the role subdir
+ * @param {string} role
+ * @param {'public'|'auth_required'} access
+ * @returns {Promise<object>} screenshot result entry
+ */
+async function captureScreenshot(page, pageConfig, config, outputDir, role, access) {
   const url = new URL(pageConfig.path, config.baseUrl).href;
   const filename = `${pageConfig.id}_${pageConfig.name}.png`;
   const filepath = path.join(outputDir, filename);
   const waitMs = config.waitAfterNavigation || 2000;
   const timeout = config.timeout || 30000;
 
-  console.log(`  [${pageConfig.id}] Navigating to ${url}...`);
+  console.log(`  [${role}][${pageConfig.id}] Navigating to ${url}...`);
 
   await page.goto(url, { waitUntil: 'networkidle', timeout });
   await page.waitForTimeout(waitMs);
 
   const screenshotOptions = { path: filepath };
-  if (pageConfig.fullPage) {
-    screenshotOptions.fullPage = true;
-  }
-
+  if (pageConfig.fullPage) screenshotOptions.fullPage = true;
   await page.screenshot(screenshotOptions);
-  console.log(`  [${pageConfig.id}] Saved ${filename}`);
+
+  console.log(`  [${role}][${pageConfig.id}] Saved ${role}/${filename}`);
 
   return {
     id: pageConfig.id,
+    role,
     name: pageConfig.name,
-    file: filename,
+    file: `${role}/${filename}`,
     title: pageConfig.title || pageConfig.name,
+    access,
     success: true,
   };
+}
+
+/**
+ * Run a full screenshot session for one role.
+ * Opens a BrowserContext, authenticates (if credentials provided),
+ * captures all applicable routes, closes the context.
+ *
+ * @param {{role: string, credentials?: null|object, login_url?: string,
+ *          username?: string, password?: string,
+ *          username_field?: string, password_field?: string, submit_button?: string}} roleConfig
+ * @param {Array<{id: string, path: string, name: string}>} pages
+ * @param {Record<string, 'public'|'auth_required'>} accessMap
+ * @param {object} config
+ * @param {import('playwright').Browser} browser
+ * @param {string} outputDir  - base screenshots dir (role subdir created inside)
+ * @returns {Promise<{results: object[], errors: object[]}>}
+ */
+async function captureRoleScreenshots(roleConfig, pages, accessMap, config, browser, outputDir) {
+  const viewport = config.viewport || { width: 1280, height: 800 };
+  const context = await browser.newContext({ viewport, locale: 'ru-RU' });
+  const results = [];
+  const errors = [];
+
+  if (roleConfig.credentials !== null && roleConfig.username) {
+    try {
+      await authenticate(context, roleConfig, config);
+    } catch (err) {
+      console.error(`  [${roleConfig.role}] Auth failed: ${err.message}`);
+      errors.push({ role: roleConfig.role, stage: 'auth', message: err.message });
+      await context.close();
+      return { results, errors };
+    }
+  }
+
+  const roleDir = path.join(outputDir, roleConfig.role);
+  fs.mkdirSync(roleDir, { recursive: true });
+  const page = await context.newPage();
+  page.setDefaultTimeout(config.timeout || 30000);
+
+  for (const pageConfig of pages) {
+    const access = accessMap[pageConfig.id] || 'public';
+    if (roleConfig.role === 'guest' && access === 'auth_required') continue;
+
+    try {
+      const result = await captureScreenshot(page, pageConfig, config, roleDir, roleConfig.role, access);
+      results.push(result);
+    } catch (err) {
+      console.error(`  [${roleConfig.role}][${pageConfig.id}] Error: ${err.message}`);
+      results.push({
+        id: pageConfig.id,
+        role: roleConfig.role,
+        name: pageConfig.name,
+        file: null,
+        title: pageConfig.title || pageConfig.name,
+        access,
+        success: false,
+      });
+      errors.push({ role: roleConfig.role, id: pageConfig.id, message: err.message });
+    }
+  }
+
+  await context.close();
+  return { results, errors };
 }
 
 async function run() {
@@ -198,12 +298,10 @@ async function run() {
   const outputDir = path.resolve(args.output);
   fs.mkdirSync(outputDir, { recursive: true });
 
-  const viewport = config.viewport || { width: 1280, height: 800 };
-  const timeout = config.timeout || 30000;
-
   const manifest = {
     generated_at: new Date().toISOString(),
     base_url: config.baseUrl,
+    roles: [],
     screenshots: [],
     errors: [],
   };
@@ -216,61 +314,48 @@ async function run() {
     process.exit(1);
   }
 
-  const context = await browser.newContext({
-    viewport,
-    locale: 'ru-RU',
-  });
+  // Stage 1: Probe routes (skip if no auth roles configured)
+  const roles = config.auth_roles || [{ role: 'guest', credentials: null }];
+  const hasAuthRoles = roles.some((r) => r.role !== 'guest' && r.username);
+  let accessMap = {};
 
-  const page = await context.newPage();
-  page.setDefaultTimeout(timeout);
-
-  // Authenticate if auth config is present
-  const needsAuth = config.auth && config.pages.some((p) => !p.skipAuth);
-  if (needsAuth) {
+  if (hasAuthRoles) {
+    console.log('\nProbing routes for authentication requirements...');
     try {
-      await authenticate(page, config);
+      accessMap = await probeRoutes(config.pages, config, browser);
+      const authCount = Object.values(accessMap).filter((v) => v === 'auth_required').length;
+      console.log(`Probe complete: ${authCount} protected routes, ${Object.keys(accessMap).length - authCount} public.`);
     } catch (err) {
-      console.error(`Authentication failed: ${err.message}`);
-      manifest.errors.push({
-        stage: 'auth',
-        message: err.message,
-      });
-      // Continue — some pages with skipAuth may still work
+      console.error(`Probe run failed: ${err.message}`);
+      for (const p of config.pages) accessMap[p.id] = 'public';
     }
+  } else {
+    for (const p of config.pages) accessMap[p.id] = 'public';
   }
 
-  // Capture screenshots for each page
-  for (const pageConfig of config.pages) {
-    try {
-      const result = await captureScreenshot(page, pageConfig, config, outputDir);
-      manifest.screenshots.push(result);
-    } catch (err) {
-      console.error(`  [${pageConfig.id}] Error: ${err.message}`);
-      manifest.screenshots.push({
-        id: pageConfig.id,
-        name: pageConfig.name,
-        file: null,
-        title: pageConfig.title || pageConfig.name,
-        success: false,
-      });
-      manifest.errors.push({
-        id: pageConfig.id,
-        name: pageConfig.name,
-        message: err.message,
-      });
-    }
+  // Stage 2: Parallel role sessions
+  manifest.roles = roles.map((r) => r.role);
+  console.log(`\nCapturing screenshots for ${roles.length} role(s): ${manifest.roles.join(', ')}`);
+
+  const roleResults = await Promise.all(
+    roles.map((roleConfig) =>
+      captureRoleScreenshots(roleConfig, config.pages, accessMap, config, browser, outputDir)
+    )
+  );
+
+  for (const { results, errors } of roleResults) {
+    manifest.screenshots.push(...results);
+    manifest.errors.push(...errors);
   }
 
   await browser.close();
 
-  // Write manifest
   const manifestPath = path.join(outputDir, 'manifest.json');
   fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf-8');
   console.log(`\nManifest written to ${manifestPath}`);
 
   const successCount = manifest.screenshots.filter((s) => s.success).length;
-  const totalCount = manifest.screenshots.length;
-  console.log(`Done: ${successCount}/${totalCount} screenshots captured.`);
+  console.log(`Done: ${successCount}/${manifest.screenshots.length} screenshots captured.`);
 
   if (manifest.errors.length > 0) {
     console.log(`Errors: ${manifest.errors.length}`);
@@ -278,12 +363,13 @@ async function run() {
   }
 }
 
-run().catch((err) => {
-  console.error(`Fatal error: ${err.message}`);
-  process.exit(1);
-});
+// Only run when executed directly (not when required for testing)
+if (require.main === module) {
+  run().catch((err) => {
+    console.error(`Fatal error: ${err.message}`);
+    process.exit(1);
+  });
+}
 
 // Export functions for unit testing
-if (require.main !== module) {
-  module.exports = { autoDetectFormFields, probeRoutes };
-}
+module.exports = { autoDetectFormFields, probeRoutes, authenticate, captureRoleScreenshots };
