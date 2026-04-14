@@ -8,6 +8,8 @@ jest.mock('playwright', () => ({
 const {
   autoDetectFormFields,
   probeRoutes,
+  authenticate,
+  captureRoleScreenshots,
 } = require('../skills/gen-docs/scripts/screenshot');
 
 // ---------------------------------------------------------------------------
@@ -140,8 +142,6 @@ describe('probeRoutes', () => {
 // ---------------------------------------------------------------------------
 // authenticate (refactored: takes BrowserContext, not page)
 // ---------------------------------------------------------------------------
-
-const { authenticate, captureRoleScreenshots } = require('../skills/gen-docs/scripts/screenshot');
 
 describe('authenticate', () => {
   function makeAuthContext(finalUrlAfterLogin) {

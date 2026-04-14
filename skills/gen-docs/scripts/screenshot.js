@@ -97,6 +97,11 @@ async function authenticate(context, roleConfig, config) {
     submitSelector = submitSelector || detected.submitSelector;
   }
 
+  if (!usernameSelector || !passwordSelector || !submitSelector) {
+    await page.close();
+    throw new Error(`Could not resolve all form fields at ${loginUrl}. Provide explicit selectors in auth_roles config.`);
+  }
+
   await page.fill(usernameSelector, roleConfig.username);
   await page.fill(passwordSelector, roleConfig.password);
   await page.click(submitSelector);
@@ -238,7 +243,7 @@ async function captureScreenshot(page, pageConfig, config, outputDir, role, acce
  */
 async function captureRoleScreenshots(roleConfig, pages, accessMap, config, browser, outputDir) {
   const viewport = config.viewport || { width: 1280, height: 800 };
-  const context = await browser.newContext({ viewport, locale: 'ru-RU' });
+  const context = await browser.newContext({ viewport, locale: config.locale || 'ru-RU' });
   const results = [];
   const errors = [];
 
