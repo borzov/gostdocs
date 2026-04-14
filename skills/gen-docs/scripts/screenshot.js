@@ -103,7 +103,7 @@ async function autoDetectFormFields(page) {
     const inputs = Array.from(
       document.querySelectorAll('input[type=text], input[type=email]')
     );
-    const el = inputs[inputs.length - 1];
+    const el = inputs[inputs.length - 1]; // last text/email input is typically the username field
     if (!el) return null;
     if (el.id) return `#${el.id}`;
     if (el.name) return `input[name="${el.name}"]`;
@@ -145,7 +145,8 @@ async function probeRoutes(pages, config, browser) {
       const wasRedirected = finalPath !== requestedPath && finalPath !== requestedPath + '/';
       const hasPasswordField = (await page.$('input[type=password]')) !== null;
       accessMap[pageConfig.id] = (wasRedirected || hasPasswordField) ? 'auth_required' : 'public';
-    } catch {
+    } catch (err) {
+      console.warn(`  [probe] Could not reach ${pageConfig.path}: ${err.message} — treating as public`);
       accessMap[pageConfig.id] = 'public';
     }
   }

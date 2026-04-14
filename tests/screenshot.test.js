@@ -24,11 +24,8 @@ function makePage(domShape) {
 describe('autoDetectFormFields', () => {
   test('returns null when no password field exists', async () => {
     const page = makePage({});
-    // Override evaluate to simulate no password field
-    page.evaluate.mockImplementation(async (fn) => {
-      const fakeDoc = { querySelector: () => null, querySelectorAll: () => [] };
-      return fn.toString().includes('password') ? null : null;
-    });
+    // page.$ returns null (no password field) so autoDetectFormFields returns early
+    // without ever calling page.evaluate
 
     const result = await autoDetectFormFields(page);
     expect(result).toBeNull();
@@ -59,8 +56,7 @@ describe('autoDetectFormFields', () => {
 // ---------------------------------------------------------------------------
 
 describe('probeRoutes', () => {
-  function makeProbeContext(pageResponses) {
-    // pageResponses: { [url]: { finalUrl, hasPasswordField } }
+  function makeProbeContext() {
     const page = {
       goto: jest.fn(),
       url: jest.fn(),
