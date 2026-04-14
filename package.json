@@ -1,6 +1,6 @@
 {
   "name": "gen-docs",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "GOST-compliant documentation generator for information systems — user guides, admin guides, operator guides, technical descriptions with automatic screenshots",
   "author": {
     "name": "borzov"
@@ -16,5 +16,11 @@
     "screenshots",
     "docx",
     "pandoc"
-  ]
+  ],
+  "scripts": {
+    "test": "jest"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
 }
