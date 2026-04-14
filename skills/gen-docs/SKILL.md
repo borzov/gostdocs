@@ -5,7 +5,7 @@ description: Use when the user needs to generate formal documentation for an inf
 
 # gen-docs: GOST-Compliant Documentation Generator
 
-Generate formal documentation for information systems with automatic screenshots, following Russian GOST standards (RD 50-34.698-90, GOST 34.201-89, GOST R 59795-2021).
+Generate formal documentation for information systems with automatic screenshots, following Russian GOST standards (RD 50-34.698-90, GOST 34.201-89, GOST R 59795-2021). **v0.2.0**
 
 ## Overview
 
@@ -71,6 +71,29 @@ Check if `docs/meta.yaml` exists in the project. If yes, offer to reuse previous
 - Launch from Docker (docker compose up)
 - Skip screenshots
 
+**Q5-auth** (shown only when screenshots are NOT skipped):
+
+Ask: *"Does the application have sections that require authentication (login)?"*
+- Yes, detect automatically
+- No, everything is public → skip to Q6
+
+If "Yes": run probe detection after Phase 2a (doc-researcher) completes and roles are identified.
+Then for each detected role, ask:
+
+> "Screenshotter detected the following roles from code analysis: {roles_list}.
+> Please provide credentials for each role you want screenshots of (leave blank to skip)."
+
+Collect per role:
+- `login` (username / email)
+- `password`
+- `login_url` (default: `/login`)
+- `username_field` CSS selector (leave blank for auto-detect)
+- `password_field` CSS selector (leave blank for auto-detect)
+- `submit_button` CSS selector (leave blank for auto-detect)
+
+**Security note:** `meta.yaml` is automatically added to the project's `.gitignore`
+on first write to prevent credentials from entering version control.
+
 **Q6** (strict mode only): Title page metadata
 - Organization name, system name, document code, version, city
 
@@ -85,6 +108,24 @@ doc_types:
 gost_mode: strict  # or lite
 app_url: http://localhost:3000
 app_launch: docker  # or url or none
+skill_version: "0.2.0"
+auth_roles:
+  - role: guest
+    credentials: null
+  - role: admin
+    login_url: /admin/login
+    username: admin@example.com
+    password: "secret"
+    username_field: "#email"      # null = auto-detect
+    password_field: "#password"   # null = auto-detect
+    submit_button: null           # null = auto-detect
+  - role: user
+    login_url: /login
+    username: user@example.com
+    password: "secret"
+    username_field: null
+    password_field: null
+    submit_button: null
 metadata:
   organization: "Company Name"
   system_name: "System Name"
@@ -93,6 +134,11 @@ metadata:
   city: "Moscow"
   year: "2026"
 ```
+
+**Version compatibility:** When loading a `meta.yaml` that has no `skill_version` field or has
+`skill_version < 0.2.0`, warn the user:
+> "This meta.yaml was created by an older version of gen-docs. Auth roles are not configured.
+> Continue without authentication (no role-based screenshots), or re-run parameter collection?"
 
 ## Phase 2: Research with Subagents
 
@@ -157,7 +203,7 @@ Use the route/page list from doc-researcher results to build the screenshot conf
 
 Prompt template:
 ```
-You are a screenshot automation agent. Your task is to capture screenshots of a running web application for documentation.
+You are a screenshot automation agent. Your task is to capture screenshots of a running web application for documentation, supporting multiple user roles.
 
 Application URL: {app_url}
 Application launch: {app_launch}  (if "docker", run `docker compose up -d` in {project_path} first and wait for readiness)
@@ -170,14 +216,32 @@ Steps:
 2. Build screenshot config from this route list:
 {routes_from_doc_researcher}
 
-3. Run the screenshot script:
+3. Configure auth_roles from meta.yaml credentials:
+{auth_roles_from_meta_yaml}
+   - Include role "guest" (no credentials) for public pages
+   - Include each role that has credentials provided
+
+4. Run the screenshot script:
    node {skill_path}/scripts/screenshot.js --config <config.json> --output {project_path}/docs/screenshots
 
-4. Verify all screenshots were captured. Report any failures.
+   Config JSON format:
+   {
+     "baseUrl": "{app_url}",
+     "viewport": {"width": 1280, "height": 800},
+     "waitAfterNavigation": 2000,
+     "timeout": 30000,
+     "pages": [ {routes_as_page_objects} ],
+     "auth_roles": [ {auth_roles_array} ]
+   }
 
-5. Return the manifest.json content.
+5. The script automatically:
+   - Probes all routes in guest mode to detect which require authentication
+   - Runs parallel browser sessions per role
+   - Saves screenshots to {project_path}/docs/screenshots/{role}/
 
-Auth credentials (if needed): {auth_credentials}
+6. Verify all screenshots were captured. Report any auth failures.
+
+7. Return the manifest.json content.
 ```
 
 ## Phase 3: Markdown Generation
@@ -317,13 +381,18 @@ Templates use these placeholders that the generator replaces:
         admin-guide.md
         operator-guide.md
         technical-description.md
-    screenshots/        # Playwright captures
-        *.png
-        manifest.json
+    screenshots/        # Playwright captures — one subfolder per role
+        guest/
+            *.png
+        admin/
+            *.png
+        user/
+            *.png
+        manifest.json   # All captures with role + access fields
     output/             # Final DOCX files
         user_guide.docx
         admin_guide.docx
         operator_guide.docx
         technical_description.docx
-    meta.yaml           # Saved parameters for re-runs
+    meta.yaml           # Saved parameters for re-runs (in .gitignore — contains passwords)
 ```
