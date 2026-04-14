@@ -84,7 +84,7 @@ Then for each detected role, ask:
 > Please provide credentials for each role you want screenshots of (leave blank to skip)."
 
 Collect per role:
-- `login` (username / email)
+- `username` (email or login)
 - `password`
 - `login_url` (default: `/login`)
 - `username_field` CSS selector (leave blank for auto-detect)
@@ -135,8 +135,8 @@ metadata:
   year: "2026"
 ```
 
-**Version compatibility:** When loading a `meta.yaml` that has no `skill_version` field or has
-`skill_version < 0.2.0`, warn the user:
+**Version compatibility:** When loading a `meta.yaml` that has no `skill_version` field, or has a `skill_version`
+value lower than `"0.2.0"` (compare as semver: 0.1.x < 0.2.0), warn the user:
 > "This meta.yaml was created by an older version of gen-docs. Auth roles are not configured.
 > Continue without authentication (no role-based screenshots), or re-run parameter collection?"
 
