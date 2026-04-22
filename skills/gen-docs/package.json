@@ -1,0 +1,20 @@
+{
+  "name": "@gen-docs/skill-runtime",
+  "version": "0.3.0-dev",
+  "private": true,
+  "description": "Runtime dependencies for the gen-docs Claude Code skill. Self-contained sandbox — installed once into the skill directory, not into user projects.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.17.0"
+  },
+  "scripts": {
+    "bootstrap": "node scripts/bootstrap.js",
+    "precheck": "node scripts/precheck.js",
+    "screenshot": "node scripts/screenshot.js"
+  },
+  "dependencies": {
+    "playwright": "1.59.1",
+    "yaml": "2.6.1",
+    "zod": "3.23.8"
+  }
+}

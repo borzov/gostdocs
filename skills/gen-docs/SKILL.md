@@ -5,17 +5,89 @@ description: Use when the user needs to generate formal documentation for an inf
 
 # gen-docs: GOST-Compliant Documentation Generator
 
-Generate formal documentation for information systems with automatic screenshots, following Russian GOST standards (RD 50-34.698-90, GOST 34.201-89, GOST R 59795-2021). **v0.2.0**
+Generate formal documentation for information systems with automatic screenshots, following Russian GOST standards (RD 50-34.698-90, GOST 34.201-89, GOST R 59795-2021). **v0.3.0-dev**
 
-## Overview
+> **Rework in progress.** v0.3 replaces the 4-phase linear flow with a 7-phase graph,
+> structured Doc-Model intermediates, and stack-agnostic adapters. See
+> [ROADMAP.md](../../ROADMAP.md) at the repository root for the phased plan and
+> acceptance criteria. Sections below document the current state — legacy v0.2
+> behaviour is kept as a fallback during migration.
 
-This skill orchestrates documentation generation through 4 phases:
-1. **Parameter collection** — interactive questions about what to generate
-2. **Research** — parallel subagents analyze code and specifications
-3. **Markdown generation** — write documents using GOST templates
-4. **DOCX conversion** — pandoc with styled reference templates
+## Pipeline (v0.3)
 
-## Process Flow
+```
+0. bootstrap       npm ci in skill sandbox + playwright install chromium
+1. precheck        env / app / API / roles / min-entities                blocking
+2. research        code + specs + DB schema + openapi                    files + coverage
+3. plan-capture    routes x roles x viewports x themes x locales x states x journeys
+4. capture         Playwright + API-login + dismiss + actions
+5. ui-inspection   vision agent - JSON per screenshot
+6. generation      Doc-Model JSON - Markdown - DOCX
+7. validation      md-lint + docx-lint + pHash - REPORT.md
+```
+
+Each phase reads and writes to disk; any phase can be re-run in isolation via
+`--only <phase>`. Research results are cached by input-content hash and reused
+across runs unless inputs change.
+
+## Sandbox and dependencies
+
+The skill is self-contained. Runtime dependencies (Playwright + browser) live
+under `skills/gen-docs/node_modules/` and `skills/gen-docs/.playwright-cache/`,
+installed once by `bootstrap.js`. The skill never relies on globally installed
+Playwright or Chromium.
+
+- `scripts/bootstrap.js [--force|--check]` — install/verify sandbox
+- `scripts/precheck.js --config <meta.yaml>` — run precheck phase
+
+## Authentication (Phase 2)
+
+v0.3 prefers API-login over form submission:
+
+- `auth.method: api` performs an HTTP POST to `role.api_endpoint`, extracts a
+  token from the response body (configurable `token_key`, otherwise autodetects
+  `access_token`, `accessToken`, `jwt`, ...), and seeds the Playwright context
+  via `context.addInitScript()` before the first navigation. Cookies set by the
+  login response are applied via `context.addCookies()`.
+- `auth.storage: auto` detects storage at login time:
+  - `set-cookie` present AND body token → `mixed`
+  - only `set-cookie` → `cookie`
+  - only body token → `localStorage`
+- `auth.method: form` remains as fallback and raises a warning in REPORT.md.
+- `auth.fallback_to_form: true` retries via form-login when api-login fails.
+- `auth.healthcheck_path` is a **blocking** post-login check. After login, a
+  page is navigated to the app root; three checks must pass before any
+  capture runs for the role:
+  1. final URL ≠ login path
+  2. token key is present in the configured storage (skipped for cookies)
+  3. `GET <healthcheck_path>` returns 2xx (adds `Authorization: Bearer <token>`
+     for non-cookie storage)
+
+Role and login-endpoint discovery: `scripts/adapters/role-discovery/scanner.js`
+walks the project for seeders, enums, RBAC configs, and router files; returns
+deduplicated role candidates + login endpoint candidates with confidence
+levels. Output is advisory — users can override via meta.yaml.
+
+Dismiss selectors: `scripts/lib/dismiss.js` clicks configured selectors with a
+short visibility window, swallowing failures. Applied after every navigation
+and before the screenshot. Merges `auth.dismiss_selectors` (global) with
+per-page overrides (Phase 3).
+
+## CLI flags (shared by all entry scripts)
+
+| Flag | Effect |
+|---|---|
+| `--yes`, `-y` | non-interactive mode, use saved meta.yaml and defaults |
+| `--config <path>` | explicit meta.yaml (default: `<project>/docs/meta.yaml`) |
+| `--only <name>` | run one phase or one document type |
+| `--skip-screenshots` | reuse previously captured screenshots |
+| `--rerun-screenshots <role>` | recapture only the listed role (repeatable) |
+| `--dry-run` | show operations without writing outputs |
+| `--live-db` | allow `pg_dump` / live DB introspection (Phase 4) |
+| `--vision-provider <name>` | `claude` (default) or `openai` |
+| `--lang <list>` | comma-separated output languages, e.g. `ru,en` |
+
+## Process Flow (v0.2 legacy, still active where v0.3 is not wired)
 
 ```dot
 digraph gen_docs {
@@ -97,35 +169,59 @@ on first write to prevent credentials from entering version control.
 **Q6** (strict mode only): Title page metadata
 - Organization name, system name, document code, version, city
 
-### meta.yaml format
+### meta.yaml format (v0.3)
 
 ```yaml
+skill_version: "0.3.0"
 project_path: /path/to/project
 spec_path: /path/to/specs
-doc_types:
-  - user-guide
-  - admin-guide
-gost_mode: strict  # or lite
-app_url: http://localhost:3000
-app_launch: docker  # or url or none
-skill_version: "0.2.0"
-auth_roles:
-  - role: guest
-    credentials: null
-  - role: admin
-    login_url: /admin/login
-    username: admin@example.com
-    password: "secret"
-    username_field: "#email"      # null = auto-detect
-    password_field: "#password"   # null = auto-detect
-    submit_button: null           # null = auto-detect
-  - role: user
-    login_url: /login
-    username: user@example.com
-    password: "secret"
-    username_field: null
-    password_field: null
-    submit_button: null
+doc_types: [user-guide, admin-guide]
+gost_mode: strict   # or lite
+
+app:
+  url: http://localhost:3000
+  launch: docker    # or url or none
+
+auth:
+  method: api       # api | form | none
+  storage: auto     # auto | cookie | localStorage | sessionStorage | mixed
+  dismiss_selectors: [".cookie-banner", ".intro-tour-dismiss"]
+  roles:
+    - role: guest
+      credentials: null
+    - role: admin
+      login_url: /login
+      api_endpoint: /api/auth/login
+      token_key: access_token
+      username: admin@example.com
+      password: "secret"
+      username_field: null        # form-login fallback: null = auto-detect
+      password_field: null
+      submit_button: null
+
+capture:
+  viewports:
+    - { name: desktop, width: 1280, height: 800 }
+    - { name: mobile,  width: 390,  height: 844 }
+  themes: [light, dark]           # optional; empty = skip theme matrix
+  locales: [ru, en]                # optional; empty = skip locale matrix
+  wait_after_navigation: 2000
+  timeout: 30000
+
+states: [empty, error, permission-denied]   # optional states matrix
+journeys_file: journeys.yaml                 # optional, relative to project root
+
+precheck:
+  health_endpoint: /health
+  min_entities: { users: 1, orders: 1 }
+
+output:
+  languages: [ru]                 # [ru, en] for multi-language docs
+  formats: [docx]
+
+vision:
+  provider: claude                # or openai (needs OPENAI_API_KEY)
+
 metadata:
   organization: "Company Name"
   system_name: "System Name"
@@ -135,10 +231,11 @@ metadata:
   year: "2026"
 ```
 
-**Version compatibility:** When loading a `meta.yaml` that has no `skill_version` field, or has a `skill_version`
-value lower than `"0.2.0"` (compare as semver: 0.1.x < 0.2.0), warn the user:
-> "This meta.yaml was created by an older version of gen-docs. Auth roles are not configured.
-> Continue without authentication (no role-based screenshots), or re-run parameter collection?"
+**Migration from v0.2:** `scripts/lib/meta.js` auto-migrates older files on load —
+`app_url` / `app_launch` become `app.*`; `auth_roles` is wrapped into `auth.roles`
+with `method: form` and `storage: cookie` (matching v0.2 behaviour); missing
+blocks are initialised with defaults. The migration log is printed to stderr.
+Users are never asked to rewrite the file by hand.
 
 ## Phase 2: Research with Subagents
 
