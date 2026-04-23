@@ -56,5 +56,3 @@ Source: doc-researcher ROUTES + AUTH -->
 <!-- AGENT: Scaling strategy, HA approach, load balancing, replication.
 Source: doc-researcher DEPLOYMENT + spec-reader NON-FUNCTIONAL REQUIREMENTS -->
 
-<!-- GEN:security-section -->
-

@@ -35,6 +35,57 @@ describe('render', () => {
     expect(md).toMatch(/\| Параметр \| Значение \|/);
   });
 
+  test('renders title-page preamble before sections with \\newpage', () => {
+    const doc = dm.newDocument({ title: 'Руководство', lang: 'ru-RU' });
+    doc.preamble.push({
+      type: 'title-page',
+      organization: 'ООО «Пилот»',
+      document_title: 'Руководство пользователя',
+      system_name: 'Пилот',
+      doc_code: 'ПЛТ.00001-01',
+      city: 'Москва',
+      year: '2026',
+      version: '1.0',
+      approved_by: null,
+    });
+    const intro = dm.addSection(doc, dm.newSection({ heading: 'Введение', level: 1 }));
+    dm.addElement(intro, { type: 'paragraph', text: 'Текст.' });
+    const md = render.render(dm.validate(doc));
+    expect(md).toMatch(/::: \{\.titlepage\}/);
+    expect(md).toMatch(/\*\*ООО «Пилот»\*\*/);
+    expect(md).toMatch(/\*\*Руководство пользователя\*\*/);
+    expect(md).toMatch(/АС «Пилот»/);
+    expect(md).toMatch(/ПЛТ\.00001-01/);
+    expect(md).toMatch(/Москва, 2026/);
+    expect(md).toMatch(/\\newpage/);
+    // Title page lands before the first section heading.
+    const titleIdx = md.indexOf('::: {.titlepage}');
+    const sectionIdx = md.indexOf('# Введение');
+    expect(titleIdx).toBeGreaterThan(-1);
+    expect(sectionIdx).toBeGreaterThan(titleIdx);
+  });
+
+  test('title-page skips empty metadata lines gracefully', () => {
+    const doc = dm.newDocument({ title: 'T' });
+    doc.preamble.push({
+      type: 'title-page',
+      organization: null,
+      document_title: 'Minimal Cover',
+      system_name: null,
+      doc_code: null,
+      city: null,
+      year: '2026',
+      version: null,
+      approved_by: null,
+    });
+    dm.addSection(doc, dm.newSection({ heading: 'H', level: 1, elements: [{ type: 'paragraph', text: 'x' }] }));
+    const md = render.render(dm.validate(doc));
+    expect(md).toMatch(/\*\*Minimal Cover\*\*/);
+    expect(md).toMatch(/2026/);
+    expect(md).not.toMatch(/undefined/);
+    expect(md).not.toMatch(/null/);
+  });
+
   test('renders admonitions with localised header', () => {
     const doc = dm.newDocument({ title: 'T' });
     const s = dm.addSection(doc, dm.newSection({ heading: 'H', level: 1 }));

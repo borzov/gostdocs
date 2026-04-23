@@ -57,5 +57,3 @@ lang: ru-RU
 
 <!-- GEN:page-description role="admin" -->
 
-<!-- GEN:security-section -->
-

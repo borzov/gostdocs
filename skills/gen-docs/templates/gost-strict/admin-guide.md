@@ -451,5 +451,3 @@ Cover at least these categories:
 
 <!-- GEN:page-description role="admin" -->
 
-<!-- GEN:security-section -->
-

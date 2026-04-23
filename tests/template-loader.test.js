@@ -198,6 +198,67 @@ describe('parseTemplate — directive handling', () => {
     }
   });
 
+  test('heading-shaped example inside multi-line AGENT comment does not split section', () => {
+    // Regression: gost-strict/user-guide.md has an AGENT instruction block that
+    // contains an illustrative `### {Название роли}` example. Without AGENT
+    // masking the loader treats that line as a real heading and splits the
+    // parent section into ghost subsections, leaking the placeholder into the
+    // rendered Markdown as seen in ruvents-events user-guide output.
+    const src = [
+      '# Parent',
+      '',
+      '<!-- AGENT: For each user role found in the system, describe:',
+      '1. Role name and its purpose',
+      '2. List of activities',
+      '',
+      'Example structure per role:',
+      '',
+      '### {Название роли}',
+      '',
+      'Пользователь с ролью «{role}» выполняет следующие виды деятельности:',
+      '- ...',
+      '',
+      'Доступные функции:',
+      '- ...',
+      '-->',
+      '',
+      '### Обычный пользователь',
+      '',
+      'Содержимое реального подраздела.',
+    ].join('\n');
+    const skel = loader.parseTemplate(src);
+    // Only one top-level section (Parent) and one real child (Обычный пользователь).
+    expect(skel.sections).toHaveLength(1);
+    expect(skel.sections[0].heading).toBe('Parent');
+    expect(skel.sections[0].children).toHaveLength(1);
+    expect(skel.sections[0].children[0].heading).toBe('Обычный пользователь');
+    const collectHeadings = (sections) => {
+      const out = [];
+      for (const s of sections) {
+        out.push(s.heading);
+        out.push(...collectHeadings(s.children || []));
+      }
+      return out;
+    };
+    const headings = collectHeadings(skel.sections);
+    expect(headings).not.toContain('{Название роли}');
+    // Assert no ghost paragraph carries leftover placeholder prose.
+    const walkElements = (sections) => {
+      const out = [];
+      for (const s of sections) {
+        out.push(...s.elements);
+        out.push(...walkElements(s.children || []));
+      }
+      return out;
+    };
+    for (const el of walkElements(skel.sections)) {
+      const text = el.text || el.content || '';
+      expect(text).not.toContain('{role}');
+      expect(text).not.toContain('{Название роли}');
+      expect(text).not.toContain('AGENT:');
+    }
+  });
+
   test('LaTeX \\newpage becomes pagebreak directive', () => {
     const src = '# H\n\n\\newpage\n';
     const skel = loader.parseTemplate(src);
@@ -256,13 +317,20 @@ describe('expandSkeleton', () => {
     expect(v.sections[0].children[0].heading).toBe('Подраздел');
   });
 
-  test('unknown directive records a warning and is skipped', async () => {
+  test('unknown directive records a warning and leaves an UNRESOLVED breadcrumb', async () => {
     const src = '# H\n\n<!-- GEN:bogus -->\n';
     const skel = loader.parseTemplate(src);
     const warnings = [];
     const ctx = { warnings };
     const doc = await loader.expandSkeleton(skel, {}, ctx);
-    expect(doc.sections[0].elements).toHaveLength(0);
+    // Keep a machine-readable marker so downstream md-lint / postprocess can
+    // surface unresolved directives instead of silently dropping them.
+    expect(doc.sections[0].elements).toHaveLength(1);
+    expect(doc.sections[0].elements[0]).toEqual({
+      type: 'raw',
+      format: 'markdown',
+      content: '<!-- UNRESOLVED-DIRECTIVE:bogus -->',
+    });
     expect(warnings).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ scope: 'template', message: expect.stringMatching(/bogus/) }),
@@ -329,6 +397,56 @@ describe('expandSkeleton', () => {
     const els = doc.sections[0].elements;
     expect(els[0].type).toBe('raw');
     expect(els[0].content).toContain('| a | b |');
+  });
+});
+
+describe('collectDuplicateDirectives', () => {
+  test('flags a directive repeated with identical attributes', () => {
+    const src = [
+      '# H1',
+      '',
+      '<!-- GEN:security-section -->',
+      '',
+      '## H2',
+      '',
+      '<!-- GEN:security-section -->',
+    ].join('\n');
+    const skel = loader.parseTemplate(src);
+    const dupes = loader.collectDuplicateDirectives(skel);
+    expect(dupes).toHaveLength(1);
+    expect(dupes[0].name).toBe('security-section');
+    expect(dupes[0].firstLine).toBeLessThan(dupes[0].duplicateLine);
+  });
+
+  test('treats differing attributes as distinct directives', () => {
+    const src = [
+      '# H',
+      '',
+      '<!-- GEN:page-description role="guest" -->',
+      '<!-- GEN:page-description role="user" -->',
+    ].join('\n');
+    const skel = loader.parseTemplate(src);
+    const dupes = loader.collectDuplicateDirectives(skel);
+    expect(dupes).toEqual([]);
+  });
+
+  test('expandSkeleton emits duplicate-directive warnings into ctx.warnings', async () => {
+    const src = [
+      '# Top',
+      '',
+      '<!-- GEN:stub -->',
+      '',
+      '## Sub',
+      '',
+      '<!-- GEN:stub -->',
+    ].join('\n');
+    const skel = loader.parseTemplate(src);
+    const warnings = [];
+    await loader.expandSkeleton(skel, { stub: () => null }, { warnings });
+    const dup = warnings.find((w) => /duplicate directive/i.test(w.message));
+    expect(dup).toBeDefined();
+    expect(dup.scope).toBe('template');
+    expect(dup.message).toMatch(/GEN:stub/);
   });
 });
 

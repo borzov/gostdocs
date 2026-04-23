@@ -17,6 +17,7 @@ Usage:
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -25,6 +26,54 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Cm, Emu, Mm, Pt
+
+
+PLACEHOLDER_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("unresolved-mustache", re.compile(r"(?<!\\)\{[a-z_][a-z0-9_]*\}")),
+    ("agent-marker", re.compile(r"AGENT:")),
+    ("em-dash-arrow", re.compile(r"–>")),
+    ("raw-html-comment", re.compile(r"<!--")),
+    ("unresolved-directive", re.compile(r"UNRESOLVED-DIRECTIVE:")),
+)
+
+
+def iter_paragraph_texts(doc: Document):
+    """Yield (context, text) pairs covering body paragraphs and table cells.
+
+    Keeping this generic means placeholder detection works even for content
+    promoted into table cells (headers, cell text) — the spots where the
+    pre-pandoc lint cannot reach once the DOCX has been rendered.
+    """
+    for idx, paragraph in enumerate(doc.paragraphs, start=1):
+        text = paragraph.text.strip()
+        if text:
+            yield f"¶{idx}", text
+    for t_idx, table in enumerate(doc.tables, start=1):
+        for r_idx, row in enumerate(table.rows, start=1):
+            for c_idx, cell in enumerate(row.cells, start=1):
+                for p_idx, paragraph in enumerate(cell.paragraphs, start=1):
+                    text = paragraph.text.strip()
+                    if text:
+                        yield f"table{t_idx}:r{r_idx}c{c_idx}¶{p_idx}", text
+
+
+def scan_for_placeholders(doc: Document) -> list[tuple[str, str, str]]:
+    """Return a list of ``(context, tag, snippet)`` for every placeholder hit.
+
+    The pre-pandoc lint already blocks these in strict mode, but a second
+    pass on the materialised DOCX catches leaks that slipped through
+    pandoc's own rewriting (for instance, ``-->`` turning into ``–>`` only
+    after the markdown → DOCX transformation).
+    """
+    findings: list[tuple[str, str, str]] = []
+    for context, text in iter_paragraph_texts(doc):
+        for tag, pattern in PLACEHOLDER_PATTERNS:
+            match = pattern.search(text)
+            if match is not None:
+                snippet = text[:120].replace("\n", " ")
+                findings.append((context, tag, snippet))
+                break
+    return findings
 
 
 # Content width = page_width - left_margin - right_margin = 210 - 20 - 10 = 180mm
@@ -500,6 +549,20 @@ def main() -> None:
     # Add paragraph indent to body text only (strict GOST mode)
     if font_name == "Times New Roman":
         add_body_text_indent(doc)
+
+    # Final safety net — scan the materialised DOCX for placeholder text
+    # that slipped through the pre-pandoc lint (e.g., pandoc rewriting
+    # `-->` to `–>` after lint ran). Findings are reported on stderr so
+    # callers can surface them without failing the DOCX itself, since by
+    # this point the file is already written.
+    findings = scan_for_placeholders(doc)
+    if findings:
+        print(
+            f"[postprocess] {len(findings)} placeholder leak(s) in {docx_path.name}:",
+            file=sys.stderr,
+        )
+        for context, tag, snippet in findings:
+            print(f"  - [{tag}] {context}: {snippet}", file=sys.stderr)
 
     doc.save(str(docx_path))
     print(f"Post-processed: {docx_path}")

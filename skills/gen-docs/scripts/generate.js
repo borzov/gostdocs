@@ -39,6 +39,7 @@ const dm = require('./lib/doc-model');
 const dmMd = require('./lib/doc-model-md');
 const templateLoader = require('./lib/template-loader');
 const mustacheResolve = require('./lib/mustache-resolve');
+const emptySectionGuard = require('./lib/empty-section-guard');
 const pageNarrative = require('./lib/page-narrative');
 const projectIntrospect = require('./lib/project-introspect');
 const mermaidAdapter = require('./adapters/mermaid');
@@ -51,6 +52,38 @@ const VALID_DOC_TYPES = [
   'operator-guide',
   'technical-description',
 ];
+
+const DOC_TITLES = {
+  ru: {
+    'user-guide':            'Руководство пользователя',
+    'admin-guide':           'Руководство администратора',
+    'operator-guide':        'Руководство оператора',
+    'technical-description': 'Техническое описание',
+  },
+  en: {
+    'user-guide':            'User Guide',
+    'admin-guide':           'Administrator Guide',
+    'operator-guide':        'Operator Guide',
+    'technical-description': 'Technical Description',
+  },
+};
+
+function buildTitlePageElement(docType, ctx) {
+  const lang = ctx.lang === 'en' ? 'en' : 'ru';
+  const m = ctx.metadata || {};
+  const documentTitle = DOC_TITLES[lang][docType] || docType;
+  return {
+    type: 'title-page',
+    organization: m.organization || null,
+    approved_by: m.approved_by || null,
+    document_title: documentTitle,
+    system_name: m.system_name || null,
+    doc_code: m.doc_code || null,
+    version: m.version || null,
+    city: m.city || null,
+    year: m.year || String(new Date().getFullYear()),
+  };
+}
 
 function readJsonIfExists(filePath) {
   if (!fs.existsSync(filePath)) return null;
@@ -295,6 +328,13 @@ function buildExpanders(ctx) {
           return true;
         }),
       };
+      // No journeys defined — leave the template as-is instead of emitting
+      // an extra "Примеры использования" section that would duplicate the
+      // author's own heading and dilute the manual scenario prose.
+      if (filtered.journeys.length === 0) {
+        pushWarning(ctx, 'journey', `no journeys matched attrs ${JSON.stringify(attrs)}; skipping section`);
+        return null;
+      }
       const headingLevel = Number(attrs.headingLevel) > 0 ? Number(attrs.headingLevel) : 1;
       const section = journeyRender.renderJourneysSection(filtered, ctx.manifest, {
         lang: ctx.lang,
@@ -402,6 +442,11 @@ async function generateOne(docType, ctx, opts) {
   const expanders = buildExpanders(ctx);
   const doc = await templateLoader.expandSkeleton(skeleton, expanders, ctx);
 
+  // GOST title page — always the first preamble element so a proper cover
+  // precedes the table of contents in the DOCX. Metadata fields are
+  // nullable; the renderer only emits lines for values that are present.
+  doc.preamble.unshift(buildTitlePageElement(docType, ctx));
+
   // NFR policy — strict mode emits blockers for missing NFR sections.
   if (ctx.coverage) {
     const nfr = nfrPolicy.applyNfrPolicy(ctx.coverage, ctx.meta.gost_mode, { lang: ctx.lang });
@@ -420,12 +465,25 @@ async function generateOne(docType, ctx, opts) {
   }
 
   // Security fallback — ensure every doc has a security section.
+  // Deep walk: template authors may nest `<!-- GEN:security-section -->`
+  // inside a sub-section; a shallow check would miss it and the fallback
+  // would push a second copy on top-level, producing visible duplicates.
   const securitySlug = `security-${docType}`;
-  const hasSecurity = doc.sections.some((s) => s.slug === securitySlug)
-    || doc.sections.some((s) => (s.children || []).some((ch) => ch.slug === securitySlug));
+  const hasSecurity = (function hasSectionBySlug(sections, slug) {
+    for (const s of sections || []) {
+      if (s.slug === slug) return true;
+      if (s.children && hasSectionBySlug(s.children, slug)) return true;
+    }
+    return false;
+  })(doc.sections, securitySlug);
   if (!hasSecurity) {
     doc.sections.push(security.buildSection(docType, { lang: ctx.lang, level: 1 }));
   }
+
+  // Empty-section guard — insert placeholders and record strict blockers
+  // BEFORE validation and markdown rendering so the downstream lint sees
+  // content-bearing paragraphs instead of bare headings.
+  emptySectionGuard.applyEmptySectionGuard(doc, ctx);
 
   let validationOk = false;
   try {
@@ -446,6 +504,7 @@ async function generateOne(docType, ctx, opts) {
     manifestFiles,
     fileExists,
     excluded: ctx.meta.generate?.exclude_manifest_files || [],
+    lang: ctx.lang,
   });
 
   if (ctx.meta.gost_mode === 'strict' && lint.errors > 0) {
@@ -499,7 +558,23 @@ async function runGenerate(cfg, opts = {}) {
 function formatSummary(result) {
   const bytes = result.documents.reduce((acc, d) => acc + (d.bytes || 0), 0);
   const kib = (bytes / 1024).toFixed(1);
-  return `[generate] wrote ${result.documents.length} docs (${kib} KiB) | ${result.warnings.length} warnings | ${result.blockers.length} blockers`;
+  const lines = [
+    `[generate] wrote ${result.documents.length} docs (${kib} KiB) | ${result.warnings.length} warnings | ${result.blockers.length} blockers`,
+  ];
+  // Group blockers by scope so repeated findings (e.g. a dozen empty
+  // sections) show up as a single line with a count.
+  const byScope = new Map();
+  for (const b of result.blockers || []) {
+    byScope.set(b.scope, (byScope.get(b.scope) || 0) + 1);
+  }
+  if (byScope.size > 0) {
+    const breakdown = [...byScope.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([scope, count]) => `${scope}=${count}`)
+      .join(', ');
+    lines.push(`[generate] blockers by scope: ${breakdown}`);
+  }
+  return lines.join('\n');
 }
 
 async function main() {

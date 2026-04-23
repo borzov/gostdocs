@@ -291,5 +291,3 @@ If the system is not designed for horizontal scaling, state this explicitly and 
 4. Backup and recovery (reference admin guide)
 5. Graceful degradation under load -->
 
-<!-- GEN:security-section -->
-

@@ -115,8 +115,24 @@ const pageDescription = baseElement.extend({
   checklist: z.array(pageChecklistItem).default([]),
 });
 
+// GOST title page — emitted as the very first element of every doc so
+// pandoc renders a proper cover before the TOC and body. All fields are
+// optional except the document title itself, so the element works with
+// partially populated metadata.
+const titlePage = baseElement.extend({
+  type: z.literal('title-page'),
+  organization: z.string().nullable().optional(),
+  approved_by: z.string().nullable().optional(),
+  document_title: z.string().min(1),
+  system_name: z.string().nullable().optional(),
+  doc_code: z.string().nullable().optional(),
+  version: z.string().nullable().optional(),
+  city: z.string().nullable().optional(),
+  year: z.string().nullable().optional(),
+});
+
 const element = z.discriminatedUnion('type', [
-  paragraph, figure, table, admonition, checklistResult, code, raw, pageDescription,
+  paragraph, figure, table, admonition, checklistResult, code, raw, pageDescription, titlePage,
 ]);
 
 /** @type {any} */
@@ -137,6 +153,11 @@ const documentSchema = z
     subtitle: z.string().nullable().default(null),
     lang: z.string().min(2).default('ru-RU'),
     frontmatter: z.record(z.any()).default({}),
+    // Elements rendered BEFORE the first section — e.g. GOST title page +
+    // page break. Kept separate from `sections` so a title page has no
+    // heading numbering and cannot confuse per-section figure / table
+    // counters in doc-model-md.js.
+    preamble: z.array(element).default([]),
     sections: z.array(sectionSchema).default([]),
   })
   .strict();
@@ -167,6 +188,7 @@ function newDocument({ title, subtitle = null, lang = 'ru-RU', frontmatter = {} 
     subtitle,
     lang,
     frontmatter: { ...frontmatter },
+    preamble: [],
     sections: [],
   };
 }

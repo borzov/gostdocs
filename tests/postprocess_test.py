@@ -101,5 +101,34 @@ def test_force_update_fields_is_idempotent(tmp_path: Path) -> None:
     assert elements[0].get(qn("w:val")) == "true"
 
 
+def test_scan_for_placeholders_detects_leaks(tmp_path: Path) -> None:
+    doc = Document()
+    doc.add_paragraph("Нормальный текст на русском.")
+    doc.add_paragraph("Пользователь «{role}» выполняет задачи.")
+    doc.add_paragraph("Ошибки –> пример в прозе.")
+    table = doc.add_table(rows=1, cols=2)
+    table.rows[0].cells[0].text = "AGENT: fill me"
+    table.rows[0].cells[1].text = "<!-- unfinished"
+
+    findings = postprocess.scan_for_placeholders(doc)
+
+    tags = [tag for _, tag, _ in findings]
+    assert "unresolved-mustache" in tags
+    assert "em-dash-arrow" in tags
+    assert "agent-marker" in tags
+    assert "raw-html-comment" in tags
+    assert not any("Нормальный текст" in snippet for _, _, snippet in findings)
+
+
+def test_scan_for_placeholders_clean_doc_returns_empty(tmp_path: Path) -> None:
+    doc = Document()
+    doc.add_paragraph("Документ полностью заполнен.")
+    doc.add_paragraph("Ещё один нормальный абзац.")
+
+    findings = postprocess.scan_for_placeholders(doc)
+
+    assert findings == []
+
+
 if __name__ == "__main__":  # pragma: no cover
     raise SystemExit(pytest.main([str(Path(__file__))]))

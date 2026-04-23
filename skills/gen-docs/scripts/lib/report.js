@@ -110,11 +110,25 @@ function coverageSection(input, t) {
 
 function blockersSection(input, t) {
   const lines = [`## ${t.blockers}`, ''];
-  const blockers = (input.coverage && input.coverage.nfr && input.coverage.nfr.blockers) || [];
+  const nfr = (input.coverage && input.coverage.nfr && input.coverage.nfr.blockers) || [];
+  const extra = (input.generation && input.generation.blockers) || input.blockers || [];
+  const blockers = [...nfr, ...extra];
   if (blockers.length === 0) {
     lines.push(`_${t.none}_`);
   } else {
-    for (const b of blockers) lines.push(`- **${b.scope}**: ${b.message}`);
+    // Group by scope so repeated empty-section findings do not overwhelm
+    // readers — one line per (scope, message) pair with an occurrence
+    // counter when duplicates appear.
+    const bucket = new Map();
+    for (const b of blockers) {
+      const key = `${b.scope}::${b.message}`;
+      bucket.set(key, (bucket.get(key) || 0) + 1);
+    }
+    for (const [key, count] of bucket.entries()) {
+      const [scope, ...rest] = key.split('::');
+      const suffix = count > 1 ? ` _(×${count})_` : '';
+      lines.push(`- **${scope}**: ${rest.join('::')}${suffix}`);
+    }
   }
   return lines.join('\n');
 }

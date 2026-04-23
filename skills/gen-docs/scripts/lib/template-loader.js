@@ -88,20 +88,35 @@ function matchHeading(line) {
 }
 
 /**
- * Compute a Set of line indexes that fall *inside* fenced code blocks
- * (between an opening and closing ``` / ~~~ marker). The opening and
- * closing fence lines themselves are NOT included — they are not headings.
+ * Compute a Set of line indexes that must be ignored by top-level parsing
+ * because they fall *inside* one of:
+ *   - a fenced code block (``` / ~~~)
+ *   - a multi-line `<!-- AGENT|GOST|Reference: ... -->` comment
  *
- * Used to skip "headings" like `# Остановка` that are actually shell
- * comments inside ```bash``` blocks (a regression that, in v0.3, caused
- * admin-guide templates to split into bogus sections).
+ * For fences: the opening and closing fence lines themselves are NOT
+ * included — they are not headings.
+ *
+ * For AGENT-family comments: every line from the opener (`<!-- AGENT: …`
+ * without a closing `-->` on the same line) through the closing `-->` line
+ * is masked, inclusive. Without this, example blocks embedded inside an
+ * agent-instruction comment — e.g. `### {Название роли}` — would be
+ * detected as real headings by `matchHeading` and split the template into
+ * ghost sections, leaking the placeholder into the rendered Markdown.
  */
 function fenceMaskedLines(lines) {
   const masked = new Set();
   let inFence = false;
   let fenceMarker = null;
+  let inAgentComment = false;
   for (let i = 0; i < lines.length; i += 1) {
     const trimmed = lines[i].trim();
+    if (inAgentComment) {
+      masked.add(i);
+      if (/-->/.test(trimmed)) {
+        inAgentComment = false;
+      }
+      continue;
+    }
     if (inFence) {
       if (fenceMarker && trimmed.startsWith(fenceMarker)) {
         inFence = false;
@@ -109,6 +124,11 @@ function fenceMaskedLines(lines) {
       } else {
         masked.add(i);
       }
+      continue;
+    }
+    if (AGENT_COMMENT_OPENER.test(trimmed) && !/-->\s*$/.test(trimmed)) {
+      masked.add(i);
+      inAgentComment = true;
       continue;
     }
     if (trimmed.startsWith('```')) {
@@ -311,7 +331,17 @@ async function expandElement(element, expanders, ctx) {
     const expander = expanders && expanders[element.name];
     if (typeof expander !== 'function') {
       pushWarning(ctx, 'template', `unknown directive: ${element.name}`);
-      return { elements: [], sections: [] };
+      // Leave a machine-readable breadcrumb so md-lint and postprocess can
+      // flag the unresolved directive instead of silently dropping it —
+      // historically this produced empty sections with no explanation.
+      return {
+        elements: [{
+          type: 'raw',
+          format: 'markdown',
+          content: `<!-- UNRESOLVED-DIRECTIVE:${element.name} -->`,
+        }],
+        sections: [],
+      };
     }
     const result = await expander(element.attrs || {}, ctx, element);
     return coerceElements(result);
@@ -339,12 +369,56 @@ async function expandSection(skelSection, expanders, ctx) {
   return section;
 }
 
+/**
+ * Walk the skeleton and emit a warning for every GEN:* directive whose
+ * (name, canonicalised-attrs) pair occurs more than once. Duplicated
+ * directives silently produce duplicated sections in the output; this
+ * surfaces the problem so template authors can clean up.
+ */
+function collectDuplicateDirectives(skeleton) {
+  const seen = new Map();
+  const duplicates = [];
+  const visit = (elements) => {
+    for (const el of elements || []) {
+      if (el.kind !== 'directive') continue;
+      const attrKeys = Object.keys(el.attrs || {}).sort();
+      const canonical = attrKeys.map((k) => `${k}=${JSON.stringify(el.attrs[k])}`).join('|');
+      const fingerprint = `${el.name}::${canonical}`;
+      if (seen.has(fingerprint)) {
+        duplicates.push({
+          name: el.name,
+          firstLine: seen.get(fingerprint),
+          duplicateLine: el.sourceLine,
+        });
+      } else {
+        seen.set(fingerprint, el.sourceLine);
+      }
+    }
+  };
+  const walk = (sections) => {
+    for (const s of sections || []) {
+      visit(s.elements);
+      walk(s.children);
+    }
+  };
+  walk(skeleton.sections || []);
+  return duplicates;
+}
+
 async function expandSkeleton(skeleton, expanders, context) {
   const ctx = context || {};
   const fm = skeleton.frontmatter || {};
   const title = fm.title || ctx.title || 'Untitled';
   const lang = fm.lang || ctx.lang || 'ru-RU';
   const doc = dm.newDocument({ title, lang, frontmatter: { ...fm } });
+
+  for (const d of collectDuplicateDirectives(skeleton)) {
+    pushWarning(
+      ctx,
+      'template',
+      `duplicate directive GEN:${d.name} at line ${d.duplicateLine} (first seen at line ${d.firstLine})`,
+    );
+  }
 
   for (const s of skeleton.sections || []) {
     const built = await expandSection(s, expanders || {}, ctx);
@@ -359,4 +433,5 @@ module.exports = {
   parseTemplate,
   loadTemplate,
   expandSkeleton,
+  collectDuplicateDirectives,
 };

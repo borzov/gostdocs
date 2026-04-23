@@ -67,6 +67,22 @@ describe('buildReport', () => {
     expect(md).toMatch(/\*\*nfr:NFR\*\*: missing/);
   });
 
+  test('generation-time blockers are surfaced and deduplicated', () => {
+    const input = {
+      ...BASE,
+      generation: {
+        blockers: [
+          { scope: 'empty-section', message: 'Безопасность › Аутентификация' },
+          { scope: 'empty-section', message: 'Безопасность › Аутентификация' },
+          { scope: 'empty-section', message: 'Безопасность › Авторизация' },
+        ],
+      },
+    };
+    const md = buildReport(input);
+    expect(md).toMatch(/\*\*empty-section\*\*: Безопасность › Аутентификация _\(×2\)_/);
+    expect(md).toMatch(/\*\*empty-section\*\*: Безопасность › Авторизация/);
+  });
+
   test('suspicious is_login_form on authed role surfaced', () => {
     const input = {
       ...BASE,

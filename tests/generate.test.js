@@ -200,11 +200,7 @@ function mkTmpProject() {
       '',
       '# Примеры использования',
       '',
-      '<!-- GEN:journey role="user" -->',
-      '',
-      '# Безопасность',
-      '',
-      '<!-- GEN:security-section -->',
+      'Ниже приведены типовые сценарии работы пользователя.',
     ].join('\n'),
   );
   fs.writeFileSync(
@@ -226,10 +222,6 @@ function mkTmpProject() {
       '# Архитектура',
       '',
       '<!-- GEN:mermaid source="architecture" title="Общая архитектура" -->',
-      '',
-      '# Безопасность',
-      '',
-      '<!-- GEN:security-section -->',
     ].join('\n'),
   );
 
@@ -281,6 +273,10 @@ describe('runGenerate — integration', () => {
           mermaidModule: fakeMermaid(),
         },
       );
+      if (result.exitCode !== 0) {
+        const preview = result.blockers.map((b) => `${b.scope}: ${b.message}`).join('\n');
+        throw new Error(`runGenerate blocked:\n${preview}`);
+      }
       expect(result.exitCode).toBe(0);
       expect(result.documents).toHaveLength(2);
       const userGuide = result.documents.find((d) => d.docType === 'user-guide');

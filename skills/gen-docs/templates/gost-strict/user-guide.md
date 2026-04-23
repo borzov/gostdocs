@@ -365,5 +365,3 @@ Estimate time for each stage. -->
 
 6. Экспортируйте отчёт в необходимом формате.
 
-<!-- GEN:security-section -->
-

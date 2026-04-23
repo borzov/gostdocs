@@ -92,6 +92,28 @@ function renderCode(element) {
   return '```' + lang + '\n' + element.code + '\n```';
 }
 
+function renderTitlePage(element) {
+  const parts = [];
+  parts.push('::: {.titlepage}');
+  parts.push('');
+  if (element.organization) parts.push(`**${element.organization}**`, '');
+  if (element.approved_by) parts.push(element.approved_by, '');
+  parts.push('\\vspace{3cm}', '');
+  parts.push(`**${element.document_title}**`, '');
+  if (element.system_name) {
+    parts.push(`АС «${element.system_name}»`, '');
+  }
+  if (element.doc_code) parts.push(element.doc_code, '');
+  if (element.version) parts.push(`Версия ${element.version}`, '');
+  parts.push('\\vfill', '');
+  const footer = [element.city, element.year].filter(Boolean).join(', ');
+  if (footer) parts.push(footer, '');
+  parts.push(':::');
+  parts.push('');
+  parts.push('\\newpage');
+  return parts.join('\n');
+}
+
 function renderPageDescription(element, counters, lang) {
   const level = Math.max(1, Math.min(6, element.level || 2));
   const hash = '#'.repeat(level);
@@ -133,6 +155,7 @@ function renderElement(element, counters, lang) {
     case 'code':            return renderCode(element);
     case 'raw':             return element.content;
     case 'page-description': return renderPageDescription(element, counters, lang);
+    case 'title-page':      return renderTitlePage(element);
     default:                return '';
   }
 }
@@ -170,6 +193,10 @@ function render(document) {
   const counters = { topSection: 0, figures: 0, tables: 0 };
 
   const blocks = [emitFrontmatter(document), ''];
+  for (const element of document.preamble || []) {
+    blocks.push(renderElement(element, counters, lang));
+    blocks.push('');
+  }
   for (const section of document.sections) {
     blocks.push(renderSection(section, counters, lang, 0));
     blocks.push('');

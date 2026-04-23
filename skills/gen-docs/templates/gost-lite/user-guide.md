@@ -77,5 +77,3 @@ Source: doc-researcher FEATURES + ROUTES + screenshotter manifest -->
 
 <!-- GEN:page-description role="user" headingLevel="3" -->
 
-<!-- GEN:security-section -->
-
