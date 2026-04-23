@@ -40,6 +40,30 @@ Playwright or Chromium.
 - `scripts/bootstrap.js [--force|--check]` — install/verify sandbox
 - `scripts/precheck.js --config <meta.yaml>` — run precheck phase
 
+## Capture execution (Phase 3B)
+
+`scripts/capture.js` is the v0.3 orchestrator, replacing the legacy monolithic
+`screenshot.js`. It consumes `plan.json` and emits a manifest v2 into
+`docs/screenshots/manifest.json`.
+
+Per group of tuples that share `(role, viewport, theme, locale)`:
+- Auth is prepared via `adapters/auth` (API-login primary, form fallback)
+- Post-login `verifyAuth` runs; failure skips the entire group with a
+  recorded error in the manifest
+- For every tuple:
+  1. Parametrized paths are resolved with `id-resolver` — explicit values,
+     then `GET <list>?limit=1`, then DOM scrape via `list-scrape.js`
+  2. `page.goto` navigates to the substituted URL
+  3. `dismiss.applyDismiss` clicks cookie banners / tours (global +
+     per-page)
+  4. `action-executor` runs `actions[]` if present; each `screenshot: true`
+     step produces a separate PNG
+  5. Final screenshot is written and a manifest v2 row is upserted
+
+Legacy `screenshot.js` is kept beside `capture.js` until the new path has
+been exercised end-to-end on a representative project; migration is
+one-directional (new projects use `capture.js` only).
+
 ## Capture planning (Phase 3A)
 
 The plan-capture phase turns declarative config into a deterministic list of

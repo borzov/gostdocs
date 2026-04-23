@@ -86,14 +86,15 @@ Maps to user categories: 2.1, 2.2, 2.3, 2.4, 2.5.
 - [x] `scripts/adapters/component-detector/scanner.js` — Builder/Editor/Wizard detection + route binding
 - [x] `meta.yaml` schema extended with `pages[]` (actions, states, component_kind, parametrize)
 
-### Phase 3B — capture integration (next)
+### Phase 3B — capture integration (done)
 
-- [ ] `scripts/capture.js` — new orchestrator that consumes `plan.json` and emits manifest v2
-- [ ] Action executor — clicks / fills / wait_for / mark-screenshot across Playwright page
-- [ ] State preparator — prepare `empty` / `error` / `permission-denied` via configured hooks
-- [ ] List-scrape id resolver — DOM fallback when `GET <list>?limit=1` unsupported
-- [ ] Wire dismiss selectors into every post-goto hook
-- [ ] Retire legacy `screenshot.js` once parity is reached
+- [x] `scripts/capture.js` — new orchestrator that consumes `plan.json` and emits manifest v2
+- [x] Action executor — clicks / fills / wait_for / mark-screenshot across Playwright page
+- [x] List-scrape id resolver — DOM fallback when `GET <list>?limit=1` unsupported
+- [x] Wire dismiss selectors into every post-goto hook
+- [x] plan-capture.js entry script that feeds capture.js
+- [ ] State preparator — prepare `empty` / `error` / `permission-denied` via configured hooks (moved to Phase 3C once project-specific hooks shape is clearer)
+- [ ] Retire legacy `screenshot.js` once parity validated end-to-end on a pilot project
 
 Acceptance: `:id` routes captured with real values; modals and empty states visible in generated docs.
 

@@ -12,7 +12,32 @@ Rework from a linear 4-phase flow to a 7-phase pipeline with structured Doc-Mode
 intermediates, stack-agnostic adapters, and blocking precheck. See `ROADMAP.md`
 for the full phased plan and acceptance criteria.
 
-### Phase 3A — Capture planning (this release)
+### Phase 3B — Capture execution (this release)
+
+#### Added
+- `scripts/lib/action-executor.js` — runs `actions[]` sequences against a
+  Playwright page (click / fill / wait_for / wait_ms / screenshot). Errors
+  are collected per-step rather than thrown. Screenshot hook is injected by
+  the orchestrator so the executor itself stays pure.
+- `scripts/lib/list-scrape.js` — DOM fallback for id resolution: uses
+  configurable `rowSelector` + `idAttribute`, falls back to inline `id`,
+  then to last segment of row `href`. All failures are soft (null return).
+- `scripts/plan-capture.js` — entry script that emits
+  `docs/generated/_captures/plan.json` from meta.yaml + journeys.yaml +
+  component-detector shots. `--dry-run` prints a summary without writing.
+- `scripts/capture.js` — Phase 3B orchestrator replacing the legacy
+  `screenshot.js`. Groups tuples by `(role, viewport, theme, locale)`,
+  prepares a Playwright context per group via the Phase 2 auth adapter,
+  runs the blocking post-login healthcheck, resolves parametrized URLs,
+  applies dismiss selectors, runs action sequences, and writes manifest v2.
+- 26 new jest tests covering action executor happy path + error isolation,
+  list-scrape fallback chain, plan-capture augmentation and summary output.
+
+#### Changed
+- Legacy `screenshot.js` is preserved untouched for v0.2 compatibility but
+  new projects default to `capture.js`.
+
+### Phase 3A — Capture planning (earlier in this release)
 
 #### Added
 - `scripts/lib/routes.js` — parse + substitute parametrized routes across
