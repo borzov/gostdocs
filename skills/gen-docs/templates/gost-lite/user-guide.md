@@ -27,6 +27,8 @@ lang: ru-RU
 ## Виды деятельности и функции
 <!-- AGENT: Activities per user role. Source: spec-reader USER ROLES + doc-researcher AUTH + FEATURES -->
 
+<!-- GEN:roles-section headingLevel="3" -->
+
 ## Условия применения
 <!-- AGENT: Browsers, resolution, network. Source: doc-researcher SYSTEM OVERVIEW -->
 

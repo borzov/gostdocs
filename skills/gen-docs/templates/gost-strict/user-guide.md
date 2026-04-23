@@ -73,45 +73,13 @@ Adjust the level based on the target audience identified in spec-reader output. 
 
 ## Виды деятельности и функции
 
-<!-- AGENT: For each user role found in the system, describe:
-1. Role name and its purpose
-2. List of activities (business processes) the role participates in
-3. List of system functions available to the role
-4. Restrictions and limitations for the role
+<!-- AGENT: Роли берутся из meta.auth.roles и обогащаются описанием
+из role-discovery исследования. Человекочитаемые заголовки расставляет
+expander по маппингу (guest → «Неавторизованный посетитель», admin →
+«Администратор» и т. п.). При отсутствии данных раздел получает
+явные плейсхолдеры — empty-section guard и md-lint сообщают об этом. -->
 
-Group content BY ROLE. Source: spec-reader USER ROLES + doc-researcher AUTH + FEATURES.
-If roles are not explicitly defined, infer them from route guards, middleware, or permission checks.
-
-Example structure per role:
-
-### {Название роли}
-
-Пользователь с ролью «{role}» выполняет следующие виды деятельности:
-- ...
-
-Доступные функции:
-- ...
--->
-
-### Обычный пользователь
-
-Пользователь с базовыми правами доступа выполняет следующие виды деятельности:
-
-— просмотр информации в системе;
-
-— создание и редактирование собственных записей;
-
-— формирование отчётов в рамках своих полномочий.
-
-### Администратор
-
-Пользователь с расширенными правами доступа выполняет следующие виды деятельности:
-
-— управление учётными записями пользователей;
-
-— настройка параметров системы;
-
-— просмотр журналов действий пользователей.
+<!-- GEN:roles-section headingLevel="3" -->
 
 ## Условия применения
 

@@ -40,6 +40,7 @@ const dmMd = require('./lib/doc-model-md');
 const templateLoader = require('./lib/template-loader');
 const mustacheResolve = require('./lib/mustache-resolve');
 const emptySectionGuard = require('./lib/empty-section-guard');
+const rolesSection = require('./lib/roles-section');
 const pageNarrative = require('./lib/page-narrative');
 const projectIntrospect = require('./lib/project-introspect');
 const mermaidAdapter = require('./adapters/mermaid');
@@ -394,6 +395,20 @@ function buildExpanders(ctx) {
         element.file = relative.startsWith('..') ? element.file : relative;
       }
       return element;
+    },
+
+    'roles-section': (attrs) => {
+      const headingLevel = Number(attrs.headingLevel) > 0 ? Number(attrs.headingLevel) : 3;
+      const researchMd = (ctx.researchMd && ctx.researchMd['role-discovery']) || '';
+      const sections = rolesSection.buildRolesSections(ctx.meta, researchMd, {
+        lang: ctx.lang,
+        headingLevel,
+      });
+      if (sections.length === 0) {
+        pushWarning(ctx, 'roles-section', 'no roles defined in meta.auth.roles; skipping per-role subsections');
+        return null;
+      }
+      return sections.map((s) => ({ kind: 'section', section: s }));
     },
 
     include: async (attrs) => {
