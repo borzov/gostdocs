@@ -102,12 +102,26 @@ Acceptance: `:id` routes captured with real values; modals and empty states visi
 
 Maps to user categories: 4.1, 4.2, 8.1, 8.2, 8.3, 9.2.
 
-- [ ] Agents write to `docs/generated/_research/<theme>.md`, stdout returns summary + coverage only
-- [ ] Coverage-report in each section: `found | missing | source | size`
-- [ ] `schema-adapter` - migrations primary, `pg_dump --schema-only` via `--live-db`
-- [ ] `openapi-adapter` - fetch + convert to Markdown tables; used as source-of-truth for API section
-- [ ] NFR-strict: placeholder "pending architect review" if missing in specs; no invented numbers
-- [ ] AI-artifact filter - ignore `TECHNICAL_SPECIFICATION.md`, `ARCHITECTURE_GUIDELINES.md`, content with AI markers
+### Phase 4A — policy modules (done)
+
+- [x] Coverage-report schema: `found | missing | source | size` in
+      `scripts/lib/research-result.js`, aggregator across agents
+- [x] NFR-strict policy: placeholder + blocker in strict, warning in lite
+      (`scripts/lib/nfr-policy.js`)
+- [x] AI-artifact filter: ignore `TECHNICAL_SPECIFICATION.md`,
+      `ARCHITECTURE_GUIDELINES.md`, content with AI markers
+      (`scripts/lib/ai-artifact-filter.js`)
+
+### Phase 4B — integration (next)
+
+- [ ] Agents write to `docs/generated/_research/<theme>.md` — stdout returns
+      summary + coverage only
+- [ ] `schema-adapter`: parse migrations (prisma / knex / alembic / django /
+      typeorm / sqlalchemy), `pg_dump --schema-only` fallback via `--live-db`
+- [ ] `openapi-adapter`: fetch + convert to Markdown tables; source of truth
+      for API section of tech description
+- [ ] `research.js` orchestrator that invokes agents, reads summaries,
+      aggregates, applies NFR policy, runs AI-artifact filter
 
 Acceptance: strict mode rejects generation if NFR section missing and no placeholder allowed; coverage report reveals gaps before they reach DOCX.
 

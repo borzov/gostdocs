@@ -12,7 +12,30 @@ Rework from a linear 4-phase flow to a 7-phase pipeline with structured Doc-Mode
 intermediates, stack-agnostic adapters, and blocking precheck. See `ROADMAP.md`
 for the full phased plan and acceptance criteria.
 
-### Phase 3B — Capture execution (this release)
+### Phase 4A — Research policy modules (this release)
+
+#### Added
+- `scripts/lib/ai-artifact-filter.js` — detects markdown files produced by
+  LLM tooling so they are not cited in formal documentation. Classifies by
+  filename pattern (`TECHNICAL_SPECIFICATION.md`, `ARCHITECTURE_GUIDELINES.md`,
+  `GENERATED_*.md`, ...), footer markers (`Generated with [Claude Code]`,
+  `Co-Authored-By: Claude`), and characteristic AI phrasing. Returns a
+  `{ is_ai_artifact, confidence, reasons }` verdict per file and a
+  `partition(sources)` helper.
+- `scripts/lib/research-result.js` — Zod schema for per-agent summary.json
+  files (coverage, files, warnings) plus an `aggregate(summaries)` reducer
+  that collapses multi-agent results into a single coverage overview with
+  missing-section list.
+- `scripts/lib/nfr-policy.js` — applies the strict vs lite NFR policy to an
+  aggregated coverage report. Strict mode: missing NFR sections emit a
+  placeholder directive and a validation blocker (no fabricated numbers).
+  Lite mode: placeholder + warning, publication proceeds. Placeholders are
+  localised (Russian default, English via `opts.lang: 'en'`).
+- 34 new jest tests covering filename / footer / phrasing detection,
+  coverage aggregation across agents, strict vs lite policy branches, and
+  language selection. 267 tests total, all green.
+
+### Phase 3B — Capture execution (earlier in this release)
 
 #### Added
 - `scripts/lib/action-executor.js` — runs `actions[]` sequences against a
