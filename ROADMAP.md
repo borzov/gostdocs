@@ -212,9 +212,21 @@ Acceptance: strict mode blocks publish if DOCX deviates from GOST; REPORT.md lis
 
 Maps to user categories: 7.2, 7.3, 7.4.
 
-- [ ] Metadata autofill - current date, version from git tag / package.json / composer.json / pyproject.toml, organization from git config; manual input only for city / responsible
-- [ ] `doc_languages: [ru, en, ...]` - translate Doc-Model with shared `_glossary.yaml`
-- [ ] postprocess-docx: fixes split into `must-have` vs `opt-in` with flags, `--dry-run` prints applied transforms, operations logged to `_postprocess.log`
+### Phase 8A — metadata autofill (done)
+
+- [x] Year (system date), version (git tag / package.json /
+      composer.json / pyproject.toml), organization and responsible
+      (git config, package.json author) in `scripts/lib/metadata-autofill.js`
+- [x] Merge-without-overwrite semantics; source audit trail
+
+### Phase 8B — multi-language Doc-Model + postprocess (next)
+
+- [ ] `doc_languages: [ru, en, ...]` — translate Doc-Model with shared
+      `_glossary.yaml`; generate a DOCX per language keeping terminology
+      consistent
+- [ ] postprocess-docx: fixes split into `must-have` vs `opt-in` with
+      flags, `--dry-run` prints applied transforms, operations logged
+      to `_postprocess.log`
 
 Acceptance: `--yes` with autofilled metadata produces identical docs to interactive mode; `doc_languages: [ru, en]` yields two DOCX per document with consistent terminology.
 

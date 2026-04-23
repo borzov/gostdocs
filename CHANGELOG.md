@@ -12,7 +12,23 @@ Rework from a linear 4-phase flow to a 7-phase pipeline with structured Doc-Mode
 intermediates, stack-agnostic adapters, and blocking precheck. See `ROADMAP.md`
 for the full phased plan and acceptance criteria.
 
-### Phase 7A — REPORT.md builder + duplicate detection (this release)
+### Phase 8A — Metadata autofill (this release)
+
+#### Added
+- `scripts/lib/metadata-autofill.js` — derives routine `meta.metadata`
+  fields from the project's own state. Fills `year` (system date),
+  `version` (git tag → package.json → composer.json → pyproject.toml),
+  `organization` (package.json author/name → composer.json name →
+  pyproject name → git config user.name), `responsible` (git config
+  user.name + user.email). Records the source of each field under
+  `sources` so the user sees where values came from.
+- `mergeMetadata(existing, derived)` never overwrites non-empty
+  existing values and returns an `applied[]` list for logging.
+- 13 new jest tests covering pyproject parsing, git-tag vs
+  package.json precedence, composer / pyproject fallbacks, git-config
+  derivation, and merge semantics. 447 tests total, all green.
+
+### Phase 7A — REPORT.md builder + duplicate detection (earlier in this release)
 
 #### Added
 - `scripts/lib/file-hash.js` — SHA-256 file hashing with
