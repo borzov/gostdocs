@@ -12,7 +12,26 @@ Rework from a linear 4-phase flow to a 7-phase pipeline with structured Doc-Mode
 intermediates, stack-agnostic adapters, and blocking precheck. See `ROADMAP.md`
 for the full phased plan and acceptance criteria.
 
-### Phase 5A — UI inspection modules (this release)
+### Phase 5B — Vision provider + inspector CLI (this release)
+
+#### Added
+- `scripts/adapters/vision/openai.js` — gpt-4o vision adapter. POSTs a
+  multimodal message (text prompt + base64 image_url) to
+  `https://api.openai.com/v1/chat/completions`. Reads `OPENAI_API_KEY`
+  from env, supports explicit override via `opts.apiKey` for tests.
+  `response_format: { type: 'json_object' }` by default. Never echoes
+  the key.
+- `scripts/ui-inspector.js` — Phase 5B entry CLI. Reads manifest,
+  iterates captures, dispatches per `vision.provider`:
+  - OpenAI: direct HTTP calls, writes JSONs via inspection-store
+  - Claude: writes `_inspection/_pending.jsonl` for the SKILL
+    orchestrator to iterate via Agent tool
+  Collects warnings for `is_login_form=true` in authenticated roles.
+- 21 new jest tests covering gpt-4o payload shape, fenced JSON handling,
+  HTTP/error paths, and the inspector orchestration with mocked fetch
+  + tmp manifest. 357 tests total, all green.
+
+### Phase 5A — UI inspection modules (earlier in this release)
 
 #### Added
 - `scripts/lib/inspection-schema.js` — Zod schema for per-screenshot JSON

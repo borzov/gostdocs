@@ -142,14 +142,14 @@ Maps to user categories: 3.2, 3.3, 6.1.
       Wizard / Constructor / Designer / Composer; ru/en
 - [x] is_login_form flag surfaced for Phase 7 REPORT red-flagging
 
-### Phase 5B — integration (next)
+### Phase 5B — integration (done)
 
-- [ ] `scripts/adapters/vision/openai.js` — gpt-4o call via fetch with
-      image_url payload; OPENAI_API_KEY pickup; redact in any echo
-- [ ] `scripts/ui-inspector.js` CLI — iterate manifest, invoke selected
-      provider, write JSON via inspection-store, emit warnings for
-      is_login_form in authenticated roles
-- [ ] Interactive key-setup prompt when --vision-provider openai is chosen
+- [x] `scripts/adapters/vision/openai.js` — gpt-4o call via fetch with
+      image_url payload; OPENAI_API_KEY pickup; never echoes the key
+- [x] `scripts/ui-inspector.js` CLI — iterate manifest, dispatch OpenAI
+      directly or write `_pending.jsonl` job queue for the Claude
+      orchestrator; emit warnings for `is_login_form` in authed roles
+- [x] Key setup notes in SKILL.md for the OpenAI path
 
 Acceptance: every PNG has a matching `_inspection/<role>/<file>.json`; false-login-screen shots are flagged automatically.
 
