@@ -85,4 +85,74 @@ describe('render', () => {
     expect(body).not.toMatch(/^---$/m);
     expect(body).not.toMatch(/\n{3,}/);
   });
+
+  test('page-description heading honours element.level (default H2)', () => {
+    const doc = dm.newDocument({ title: 'T' });
+    const s = dm.addSection(doc, dm.newSection({ heading: 'Описание операций', level: 1 }));
+    dm.addElement(s, {
+      type: 'page-description',
+      page_id: 'home',
+      title: 'Главная страница',
+      file: 'guest/home.png',
+      narrative: 'Главная доступна без входа.',
+    });
+    const md = render.render(dm.validate(doc));
+    // No more "### " hard-code: page-description nested under H1 chapter renders as H2 → 1.1
+    expect(md).toMatch(/^## Главная страница$/m);
+    expect(md).not.toMatch(/^### Главная страница$/m);
+    expect(md).toMatch(/Рисунок 1\.1 — Главная страница/);
+    expect(md).toMatch(/Главная доступна без входа\./);
+  });
+
+  test('page-description honours explicit level=3 (e.g. inside an H2 subsection)', () => {
+    const doc = dm.newDocument({ title: 'T' });
+    const s = dm.addSection(doc, dm.newSection({ heading: 'Гл', level: 1 }));
+    const sub = dm.newSection({ heading: 'Публичный интерфейс', level: 2 });
+    s.children.push(sub);
+    dm.addElement(sub, {
+      type: 'page-description',
+      page_id: 'home',
+      title: 'Главная',
+      file: 'guest/home.png',
+      level: 3,
+    });
+    const md = render.render(dm.validate(doc));
+    expect(md).toMatch(/^### Главная$/m);
+  });
+
+  test('page-description renders narrative as a normal paragraph (no English checklist)', () => {
+    const doc = dm.newDocument({ title: 'T' });
+    const s = dm.addSection(doc, dm.newSection({ heading: 'Описание', level: 1 }));
+    dm.addElement(s, {
+      type: 'page-description',
+      page_id: 'profile',
+      title: 'Профиль',
+      file: 'user/profile.png',
+      narrative: 'На странице расположен заголовок «Профиль» и кнопки «Изменить» и «Редактировать».',
+    });
+    const md = render.render(dm.validate(doc));
+    expect(md).toContain('На странице расположен заголовок «Профиль»');
+    // No raw QA checklist must leak into end-user docs
+    expect(md).not.toMatch(/breadcrumb/);
+    expect(md).not.toMatch(/top_buttons/);
+    expect(md).not.toMatch(/Проверочный список/);
+    expect(md).not.toMatch(/\[V\] heading/);
+  });
+
+  test('renderTable surrounds the table with blank lines so pandoc preserves it', () => {
+    const doc = dm.newDocument({ title: 'T' });
+    const s = dm.addSection(doc, dm.newSection({ heading: 'H', level: 1 }));
+    dm.addElement(s, { type: 'paragraph', text: 'Перед таблицей.' });
+    dm.addElement(s, {
+      type: 'table',
+      caption: 'Параметры',
+      headers: ['А', 'Б'],
+      rows: [['1', '2']],
+    });
+    dm.addElement(s, { type: 'paragraph', text: 'После таблицы.' });
+    const md = render.render(dm.validate(doc));
+    // Both rows of the table must be flanked by blank lines
+    expect(md).toMatch(/Перед таблицей\.\n\n: Таблица 1\.1 — Параметры\n\| А \| Б \|/);
+    expect(md).toMatch(/\| 1 \| 2 \|\n\nПосле таблицы\./);
+  });
 });

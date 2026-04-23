@@ -43,7 +43,7 @@ function extractToken(body, preferredKey) {
 
   for (const key of keys) {
     if (typeof body[key] === 'string' && body[key].length > 0) {
-      return { key, value: body[key] };
+      return { key: preferredKey || key, value: body[key] };
     }
   }
   // one level of nesting (data, result, payload)

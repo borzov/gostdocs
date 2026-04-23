@@ -37,6 +37,13 @@ const actionStepSchema = z.object({
   screenshot_id: z.string().optional(),
 });
 
+const interactionStepSchema = z.object({
+  action: z.enum(['click', 'fill', 'expand', 'wait_ms', 'wait_for', 'scroll']),
+  selector: z.string().optional(),
+  value: z.string().optional(),
+  ms: z.number().int().positive().optional(),
+});
+
 const pageSchema = z.object({
   id: z.string().min(1),
   path: z.string().min(1),
@@ -53,6 +60,21 @@ const pageSchema = z.object({
   list_endpoint: z.string().optional(),
   list_selector: z.string().optional(),
   id_attribute: z.string().optional(),
+  // Filtering hint: which role should this page be captured under?
+  // 'guest' / 'guest-only' both pin to the unauthenticated role; named
+  // roles (admin, user, …) pin to that role only. Omitted = captured for
+  // every declared role (legacy cross-product).
+  access_role: z.string().optional(),
+  // Optional grouping label used by templates (e.g. "public", "personal",
+  // "admin") so generators can split page-description blocks into clean
+  // chapters without re-implementing role inference.
+  section: z.string().optional(),
+  // Query string variants the user wants captured separately. Emitted as
+  // `?key=value&...` appended to `path` at capture time.
+  query_params: z.record(z.string()).optional(),
+  // Steps to execute after page.goto() and before screenshot — open
+  // accordions, fill form fields, click filters, wait for animations, etc.
+  interactions: z.array(interactionStepSchema).optional(),
 });
 
 const roleSchema = z.object({
@@ -153,6 +175,9 @@ const schema = z
       })
       .default({ languages: ['ru'], formats: ['docx'] }),
 
+    // metadata: well-known keys are documented; any additional string keys
+    // (e.g. db_user, repo_url, migration_command, project_dir) flow through
+    // unchanged and become available as `{key}` placeholders inside templates.
     metadata: z
       .object({
         organization: z.string().optional(),
@@ -163,6 +188,7 @@ const schema = z
         year: z.string().optional(),
         responsible: z.string().optional(),
       })
+      .passthrough()
       .default({}),
 
     vision: z

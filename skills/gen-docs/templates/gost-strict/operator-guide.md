@@ -376,3 +376,10 @@ Source: doc-researcher ARCHITECTURE, analysis of HTTP clients, message queue con
 — наличие ошибок в журнале, связанных с внешними вызовами;
 
 — время отклика внешних систем.
+
+# Операторские экраны системы
+
+<!-- GEN:page-description role="operator" -->
+
+<!-- GEN:security-section -->
+

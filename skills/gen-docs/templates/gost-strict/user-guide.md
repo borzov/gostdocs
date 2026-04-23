@@ -163,9 +163,7 @@ If the system uses SSO, describe the SSO flow instead. -->
 
 2. В адресной строке введите адрес системы: `https://{system_url}`.
 
-3. На открывшейся странице авторизации введите логин и пароль, выданные администратором системы.
-
-   ![Страница входа в систему](../screenshots/login.png)
+3. На открывшейся странице авторизации введите логин и пароль, выданные администратором системы. Внешний вид формы входа приведён в разделе «Описание операций».
 
 4. Нажмите кнопку «Войти».
 
@@ -182,9 +180,7 @@ Include:
 
 Source: doc-researcher ROUTES (main/dashboard route) -->
 
-После успешного входа в систему на экране отображается главная страница.
-
-![Главная страница системы](../screenshots/dashboard.png)
+После успешного входа в систему на экране отображается главная страница системы. Её вид приведён в разделе «Описание операций» → «Личный кабинет».
 
 Для проверки работоспособности убедитесь, что:
 
@@ -223,44 +219,21 @@ Source: doc-researcher FEATURES + ROUTES. Generate subsections dynamically based
 
 Example for one module: -->
 
-## Управление пользователями
+## Публичный интерфейс
 
-### Описание
+<!-- AGENT: Lead-in paragraph for the public-facing pages (home, events,
+faq, registration, login, password recovery). The page-description
+directive expands one sub-subsection per captured guest screenshot. -->
 
-Модуль управления пользователями предназначен для создания, редактирования и удаления учётных записей пользователей системы. Модуль доступен пользователям с ролью «Администратор».
+<!-- GEN:page-description role="guest" headingLevel="3" -->
 
-### Порядок действий
+## Личный кабинет
 
-**Создание нового пользователя:**
+<!-- AGENT: Lead-in paragraph for the authenticated user area
+(profile, notifications, registrations). The page-description directive
+expands one sub-subsection per captured user screenshot. -->
 
-1. В главном меню выберите раздел «Пользователи».
-
-   ![Переход в раздел пользователей](../screenshots/users_menu.png)
-
-2. Нажмите кнопку «Добавить пользователя».
-
-3. В открывшейся форме заполните обязательные поля:
-
-   — Логин (от 3 до 50 символов, латинские буквы и цифры);
-
-   — Фамилия;
-
-   — Имя;
-
-   — Адрес электронной почты;
-
-   — Роль (выберите из выпадающего списка).
-
-4. При необходимости заполните дополнительные поля.
-
-5. Нажмите кнопку «Сохранить».
-
-### Ожидаемый результат
-
-После сохранения новый пользователь появится в списке пользователей. На указанный адрес электронной почты будет отправлено письмо с учётными данными для входа в систему.
-
-<!-- AGENT: Continue generating subsections for every remaining module.
-Each must follow the same three-part structure (Описание / Порядок действий / Ожидаемый результат). -->
+<!-- GEN:page-description role="user" headingLevel="3" -->
 
 # Аварийные ситуации
 
@@ -362,15 +335,7 @@ Estimate time for each stage. -->
 
 ## Примеры использования
 
-<!-- AGENT: Provide 2-3 realistic end-to-end usage scenarios.
-Each scenario MUST include:
-1. Business context (why the user performs this action)
-2. Prerequisites (what must be set up beforehand)
-3. Step-by-step walkthrough referencing sections from the operations chapter
-4. Expected outcome
-
-Source: spec-reader BUSINESS PROCESSES + doc-researcher FEATURES.
-Choose the most common real-world workflows. -->
+<!-- GEN:journey role="user" headingLevel="2" -->
 
 **Сценарий 1. Создание и обработка новой записи**
 
@@ -399,3 +364,6 @@ Choose the most common real-world workflows. -->
 5. Нажмите кнопку «Сформировать».
 
 6. Экспортируйте отчёт в необходимом формате.
+
+<!-- GEN:security-section -->
+

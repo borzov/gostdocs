@@ -21,6 +21,29 @@ describe('sectionSplit', () => {
   });
 });
 
+describe('lintMarkdown — fenced code integrity', () => {
+  test('flags pipe-tables inside fenced code blocks (warning)', () => {
+    const src = ['## H', '', 'body text.', '', '```bash',
+                 '| a | b |', '|---|---|', '| 1 | 2 |', '```'].join('\n');
+    const r = lintMarkdown(src, { minWordsPerH2: 0 });
+    const leak = r.issues.find((i) => i.code === 'fence-leak');
+    expect(leak).toBeDefined();
+    expect(leak.severity).toBe('warning');
+  });
+
+  test('does NOT flag bash-style numbered comments that look like headings', () => {
+    // Regression: `# 1. Шаг` inside ```bash``` is a legitimate shell
+    // comment, not a markdown heading. The lint rule must not paint
+    // legitimate bash comments as heading leaks.
+    const src = ['## H', '', 'body.', '', '```bash',
+                 '# 1. Клонирование репозитория',
+                 'git clone https://example.com/repo',
+                 '```'].join('\n');
+    const r = lintMarkdown(src, { minWordsPerH2: 0 });
+    expect(r.issues.find((i) => i.code === 'fence-leak')).toBeUndefined();
+  });
+});
+
 describe('lintMarkdown — placeholders', () => {
   test('flags AGENT: markers', () => {
     const r = lintMarkdown('## S\n\nAGENT: write me', { minWordsPerH2: 0 });

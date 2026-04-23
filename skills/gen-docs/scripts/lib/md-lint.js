@@ -109,6 +109,52 @@ function checkMinWordsPerH2(content, minWords) {
   return out;
 }
 
+/**
+ * Pandoc renders pipe-tables as monospace text when they are wrapped in a
+ * fenced code block — symptom of agent post-processing accidentally pasting
+ * a section inside a ```bash``` fence. We deliberately do NOT lint for
+ * "headings inside fences" because bash comments (`# 1. Клонирование`)
+ * legitimately look like markdown H1.
+ */
+function checkFencedCodeIntegrity(content) {
+  const out = [];
+  const lines = content.split('\n');
+  let inFence = false;
+  let fenceMarker = null;
+  let fenceStartLine = 0;
+  let fenceLang = '';
+  for (let i = 0; i < lines.length; i += 1) {
+    const trimmed = lines[i].trim();
+    if (inFence) {
+      if (fenceMarker && trimmed.startsWith(fenceMarker)) {
+        inFence = false;
+        fenceMarker = null;
+        fenceLang = '';
+        continue;
+      }
+      // Only flag pipe-tables; do NOT flag heading-shaped lines because
+      // shell comments inside ```bash``` legitimately start with `# `.
+      if (/^\|.*\|$/.test(trimmed) && fenceLang !== 'markdown') {
+        out.push({
+          severity: 'warning',
+          code: 'fence-leak',
+          line: i + 1,
+          message: `pipe-table row found inside fenced code block opened at line ${fenceStartLine}; pandoc will render it as monospace text`,
+        });
+      }
+      continue;
+    }
+    const fenceMatch = trimmed.match(/^(`{3,}|~{3,})(.*)$/);
+    if (fenceMatch) {
+      inFence = true;
+      fenceMarker = fenceMatch[1][0] === '`' ? '```' : '~~~';
+      fenceLang = fenceMatch[2].trim().toLowerCase();
+      fenceStartLine = i + 1;
+    }
+  }
+  return out;
+}
+
 function checkManifestCoverage(content, manifestFiles, excluded) {
   const referenced = new Set();
   for (const m of content.matchAll(/!\[[^\]]*\]\(([^)]+)\)/g)) {
@@ -150,6 +196,7 @@ function lintMarkdown(content, opts = {}) {
   const issues = [];
   issues.push(...checkPlaceholders(content));
   issues.push(...checkImageRefs(content, fileExists));
+  issues.push(...checkFencedCodeIntegrity(content));
   issues.push(...checkMinWordsPerH2(content, minWords));
   issues.push(...checkManifestCoverage(content, manifestFiles, excluded));
 
@@ -162,6 +209,7 @@ module.exports = {
   lintMarkdown,
   checkPlaceholders,
   checkImageRefs,
+  checkFencedCodeIntegrity,
   checkMinWordsPerH2,
   checkManifestCoverage,
   countWords,

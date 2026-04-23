@@ -83,6 +83,22 @@ function buildMatrix(input) {
       for (const theme of themes) {
         for (const locale of locales) {
           for (const page of pages) {
+            // Honor page.access_role — the user's explicit pin between role
+            // and page. Both `guest` and `guest-only` (login/register-style
+            // pages that are accessible only without auth) map to the
+            // anonymous role.
+            if (page.access_role) {
+              const wantGuest = page.access_role === 'guest' || page.access_role === 'guest-only';
+              const matches = wantGuest ? isGuest : roleName === page.access_role;
+              if (!matches) {
+                skipped.push({
+                  reason: `access_role=${page.access_role} does not match role=${roleName}`,
+                  role: roleName,
+                  pageId: page.id,
+                });
+                continue;
+              }
+            }
             const access = accessMap[page.id] || 'public';
             if (isGuest && access === 'auth_required') {
               skipped.push({
@@ -122,6 +138,9 @@ function buildMatrix(input) {
                 fullPage: Boolean(page.fullPage),
                 actions: page.actions || null,
                 parametrize: page.parametrize || null,
+                query_params: page.query_params || null,
+                interactions: page.interactions || null,
+                section: page.section || null,
                 access,
                 file: filename,
               });

@@ -92,6 +92,37 @@ function renderCode(element) {
   return '```' + lang + '\n' + element.code + '\n```';
 }
 
+function renderPageDescription(element, counters, lang) {
+  const level = Math.max(1, Math.min(6, element.level || 2));
+  const hash = '#'.repeat(level);
+  const out = [`${hash} ${element.title}`];
+  const figure = renderFigure({ caption: element.title, file: element.file }, counters, lang);
+  out.push('', figure);
+  if (element.narrative) {
+    out.push('', element.narrative);
+  }
+  if (element.description) {
+    out.push('', element.description);
+  }
+  // The English-keyed checklist is a QA artefact and intentionally NOT
+  // emitted into end-user guides any more. It still renders here ONLY when
+  // explicitly populated (e.g. by REPORT.md), so legacy callers keep
+  // working but production page-descriptions now favour `narrative`.
+  if (element.checklist && element.checklist.length > 0) {
+    out.push('', `**${lang === 'en' ? 'Page checklist' : 'Проверочный список'}:**`, '');
+    for (const item of element.checklist) {
+      const mark = item.filled ? LANG_STRINGS[lang].checkYes : LANG_STRINGS[lang].checkNo;
+      let suffix = '';
+      if (item.count !== null && item.count !== undefined) suffix = ` (${item.count})`;
+      else if (item.value !== null && item.value !== undefined && item.value !== '') {
+        suffix = `: ${item.value}`;
+      }
+      out.push(`- ${mark} ${item.label}${suffix}`);
+    }
+  }
+  return out.join('\n');
+}
+
 function renderElement(element, counters, lang) {
   switch (element.type) {
     case 'paragraph':       return element.text;
@@ -101,6 +132,7 @@ function renderElement(element, counters, lang) {
     case 'checklist-result': return renderChecklist(element, lang);
     case 'code':            return renderCode(element);
     case 'raw':             return element.content;
+    case 'page-description': return renderPageDescription(element, counters, lang);
     default:                return '';
   }
 }

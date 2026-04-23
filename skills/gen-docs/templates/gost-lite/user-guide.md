@@ -64,4 +64,18 @@ Source: doc-researcher FEATURES + ROUTES + screenshotter manifest -->
 <!-- AGENT: Learning path for new users -->
 
 ## Примеры использования
-<!-- AGENT: 2-3 end-to-end scenarios. Source: spec-reader BUSINESS PROCESSES -->
+
+<!-- GEN:journey role="user" headingLevel="2" -->
+
+# Экраны интерфейса
+
+## Публичный интерфейс
+
+<!-- GEN:page-description role="guest" headingLevel="3" -->
+
+## Личный кабинет
+
+<!-- GEN:page-description role="user" headingLevel="3" -->
+
+<!-- GEN:security-section -->
+

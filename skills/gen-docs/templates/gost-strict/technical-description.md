@@ -53,35 +53,7 @@ Group by category. Include version numbers where known. -->
 
 ## Общая схема
 
-<!-- AGENT: Create a comprehensive architecture diagram using Mermaid.
-Source: doc-researcher ARCHITECTURE.
-The diagram MUST show:
-1. All system components (services, databases, caches, queues)
-2. External systems and integrations
-3. Communication protocols between components
-4. Network boundaries (internal/external)
-5. Load balancers or reverse proxies
-
-Use Russian labels for all components. -->
-
-```mermaid
-graph TB
-    subgraph Внешняя сеть
-        Client[Клиент / Браузер]
-    end
-
-    subgraph Серверная инфраструктура
-        Proxy[Reverse Proxy]
-        App[Сервер приложения]
-        DB[(База данных)]
-    end
-
-    Client -->|HTTPS| Proxy
-    Proxy -->|HTTP| App
-    App -->|TCP| DB
-```
-
-<!-- AGENT: Replace this example diagram with the actual architecture from doc-researcher output -->
+<!-- GEN:mermaid source="architecture" title="Общая архитектура системы" -->
 
 ## Описание компонентов
 
@@ -134,19 +106,7 @@ MUST include:
 
 ### Схема взаимодействия для типовой операции
 
-<!-- AGENT: Create a Mermaid sequence diagram for the most common operation flow:
-```mermaid
-sequenceDiagram
-    participant Клиент
-    participant Сервер
-    participant БД
-
-    Клиент->>Сервер: HTTP-запрос
-    Сервер->>БД: SQL-запрос
-    БД-->>Сервер: Результат
-    Сервер-->>Клиент: HTTP-ответ (JSON)
-```
--->
+<!-- GEN:mermaid source="sequence" title="Последовательность операций" -->
 
 ### Протоколы и форматы данных
 
@@ -172,64 +132,11 @@ MUST include:
 
 ### ER-диаграмма
 
-<!-- AGENT: Create a Mermaid ER diagram showing all entities and their relationships:
-```mermaid
-erDiagram
-    USERS ||--o{ ORDERS : "creates"
-    USERS {
-        int id PK
-        string email
-        string name
-        datetime created_at
-    }
-    ORDERS {
-        int id PK
-        int user_id FK
-        decimal total
-        string status
-        datetime created_at
-    }
-```
-Source: doc-researcher DATABASE (migrations, models, schema files) -->
+<!-- GEN:mermaid source="er-diagram" title="ER-диаграмма предметной области" -->
 
 ## Основные сущности
 
-<!-- AGENT: For EACH database table/collection, create a detailed description.
-Source: doc-researcher DATABASE.
-For each entity provide:
-1. Table name
-2. Purpose/description
-3. Field table with columns: Field Name, Data Type, Constraints, Description
-4. Indexes (name, columns, type)
-5. Foreign keys and relationships
-6. Triggers or computed fields if any
-
-Create a subsection for each entity.
-
-Example: -->
-
-### Пользователи (users)
-
-Таблица содержит данные учётных записей пользователей системы.
-
-| Поле | Тип данных | Ограничения | Описание |
-|------|-----------|-------------|----------|
-| `id` | INTEGER | PRIMARY KEY, AUTO INCREMENT | Уникальный идентификатор |
-| `email` | VARCHAR(255) | UNIQUE, NOT NULL | Адрес электронной почты |
-| `name` | VARCHAR(255) | NOT NULL | Имя пользователя |
-| `password_hash` | VARCHAR(255) | NOT NULL | Хэш пароля |
-| `role` | VARCHAR(50) | NOT NULL, DEFAULT 'user' | Роль в системе |
-| `created_at` | TIMESTAMP | NOT NULL, DEFAULT NOW() | Дата создания |
-| `updated_at` | TIMESTAMP | NOT NULL | Дата последнего изменения |
-
-**Индексы:**
-
-| Имя индекса | Поля | Тип |
-|-------------|------|-----|
-| `users_pkey` | `id` | PRIMARY |
-| `users_email_unique` | `email` | UNIQUE |
-
-<!-- AGENT: Continue with additional subsections for every entity in the database -->
+<!-- GEN:db-schema scope="all" headingLevel="3" -->
 
 # Описание API
 
@@ -383,3 +290,6 @@ If the system is not designed for horizontal scaling, state this explicitly and 
 3. Data replication strategy
 4. Backup and recovery (reference admin guide)
 5. Graceful degradation under load -->
+
+<!-- GEN:security-section -->
+

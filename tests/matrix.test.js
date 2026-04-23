@@ -158,6 +158,98 @@ describe('buildMatrix — journeys', () => {
   });
 });
 
+describe('buildMatrix — access_role filter', () => {
+  const threeRoles = {
+    ...baseMeta,
+    auth: {
+      ...baseMeta.auth,
+      method: 'api',
+      roles: [
+        { role: 'guest', credentials: null },
+        { role: 'user',  api_endpoint: '/api/login', username: 'u', password: 'p' },
+        { role: 'admin', api_endpoint: '/api/login', username: 'a', password: 'b' },
+      ],
+    },
+  };
+
+  test('access_role: guest → only the guest role gets a tuple', () => {
+    const { plan } = buildMatrix({
+      pages: [{ id: 'home', path: '/', access_role: 'guest' }],
+      meta: threeRoles,
+    });
+    expect(plan).toHaveLength(1);
+    expect(plan[0].role).toBe('guest');
+  });
+
+  test('access_role: admin → only the admin role gets a tuple', () => {
+    const { plan } = buildMatrix({
+      pages: [{ id: 'admin-dash', path: '/admin', access_role: 'admin' }],
+      meta: threeRoles,
+    });
+    expect(plan.map((t) => t.role)).toEqual(['admin']);
+  });
+
+  test('access_role: guest-only is treated as guest-only access (login/register/etc.)', () => {
+    const { plan } = buildMatrix({
+      pages: [{ id: 'login', path: '/login', access_role: 'guest-only' }],
+      meta: threeRoles,
+    });
+    expect(plan.map((t) => t.role)).toEqual(['guest']);
+  });
+
+  test('omitting access_role keeps the legacy cross-product behaviour', () => {
+    const { plan } = buildMatrix({
+      pages: [{ id: 'mixed', path: '/whatever' }],
+      meta: threeRoles,
+    });
+    expect(plan.map((t) => t.role).sort()).toEqual(['admin', 'guest', 'user']);
+  });
+
+  test('access_role mismatches are recorded in `skipped`', () => {
+    const { skipped } = buildMatrix({
+      pages: [{ id: 'profile', path: '/profile', access_role: 'user' }],
+      meta: threeRoles,
+    });
+    const reasons = skipped.map((s) => s.reason);
+    expect(reasons.some((r) => /access_role/.test(r))).toBe(true);
+  });
+});
+
+describe('buildMatrix — query_params and interactions pass through', () => {
+  test('page.query_params attaches to each tuple verbatim', () => {
+    const { plan } = buildMatrix({
+      pages: [{
+        id: 'events-online',
+        path: '/events',
+        access_role: 'guest',
+        query_params: { format: 'online', sort: '-starts_at' },
+      }],
+      meta: baseMeta,
+    });
+    expect(plan).toHaveLength(1);
+    expect(plan[0].query_params).toEqual({ format: 'online', sort: '-starts_at' });
+  });
+
+  test('page.interactions attaches to each tuple verbatim', () => {
+    const { plan } = buildMatrix({
+      pages: [{
+        id: 'faq-open',
+        path: '/faq',
+        access_role: 'guest',
+        interactions: [
+          { action: 'click', selector: '[data-faq-toggle="0"]' },
+          { action: 'fill',  selector: 'input[name=q]', value: 'регистрация' },
+        ],
+      }],
+      meta: baseMeta,
+    });
+    expect(plan[0].interactions).toEqual([
+      { action: 'click', selector: '[data-faq-toggle="0"]' },
+      { action: 'fill',  selector: 'input[name=q]', value: 'регистрация' },
+    ]);
+  });
+});
+
 describe('buildTupleId', () => {
   test('encodes all axes stably', () => {
     const a = buildTupleId({ role: 'admin', pageId: 'home', viewport: 'desktop',

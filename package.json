@@ -20,7 +20,8 @@
   "scripts": {
     "bootstrap": "node skills/gen-docs/scripts/bootstrap.js",
     "pretest": "node skills/gen-docs/scripts/bootstrap.js --check || node skills/gen-docs/scripts/bootstrap.js",
-    "test": "jest"
+    "test": "jest",
+    "test:py": "pytest tests"
   },
   "devDependencies": {
     "jest": "^29.7.0",

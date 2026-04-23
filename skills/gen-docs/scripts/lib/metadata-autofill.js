@@ -169,27 +169,72 @@ async function deriveMetadata(projectPath, opts = {}) {
 
 /**
  * Merge autofill results into an existing metadata object. Never
- * overwrites an existing non-empty field.
+ * overwrites an existing non-empty field. The "sources" key (a derive-time
+ * provenance map) is intentionally never copied through.
  *
  * @param {Record<string, any>} existing
- * @param {Awaited<ReturnType<typeof deriveMetadata>>} derived
+ * @param {Record<string, any>} derived
  * @returns {{ merged: Record<string, any>, applied: string[] }}
  */
 function mergeMetadata(existing, derived) {
   const merged = { ...(existing || {}) };
   const applied = [];
-  for (const key of ['year', 'version', 'organization', 'responsible']) {
+  const candidate = derived || {};
+  for (const key of Object.keys(candidate)) {
+    if (key === 'sources') continue;
     const current = merged[key];
-    if ((current === undefined || current === null || current === '') && derived[key]) {
-      merged[key] = derived[key];
+    if ((current === undefined || current === null || current === '') && candidate[key]) {
+      merged[key] = candidate[key];
       applied.push(key);
     }
   }
   return { merged, applied };
 }
 
+/**
+ * Derive runtime metadata defaults from `meta` itself (no I/O).
+ *
+ * Currently fills in:
+ *   - port:        explicit port from app.url, or 80/443 by protocol
+ *   - system_url:  app.url stripped of protocol (handy for prose like
+ *                  "введите адрес `https://{system_url}`")
+ *   - project_dir: basename of project_path (used in `cd {project_dir}`
+ *                  examples in admin-guide)
+ *
+ * Only emits keys that can be confidently derived; unknown values are
+ * omitted so mergeMetadata leaves existing user values intact.
+ *
+ * @param {{ app?: { url?: string }, project_path?: string }} meta
+ * @returns {Record<string, string>}
+ */
+function deriveContextDefaults(meta) {
+  /** @type {Record<string, string>} */
+  const out = {};
+  const url = meta && meta.app && meta.app.url;
+  if (typeof url === 'string' && /^https?:\/\//i.test(url)) {
+    try {
+      const parsed = new URL(url);
+      const explicitPort = parsed.port;
+      if (explicitPort) {
+        out.port = explicitPort;
+      } else {
+        out.port = parsed.protocol === 'https:' ? '443' : '80';
+      }
+      const tail = parsed.pathname && parsed.pathname !== '/' ? parsed.pathname : '';
+      out.system_url = `${parsed.host}${tail}`;
+    } catch {
+      /* ignore malformed url */
+    }
+  }
+  if (meta && typeof meta.project_path === 'string' && meta.project_path) {
+    out.project_dir = path.basename(meta.project_path);
+  }
+  return out;
+}
+
 module.exports = {
   deriveMetadata,
   mergeMetadata,
+  deriveContextDefaults,
   extractFromPyproject,
 };

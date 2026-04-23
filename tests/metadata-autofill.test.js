@@ -1,4 +1,4 @@
-const { deriveMetadata, mergeMetadata, extractFromPyproject } =
+const { deriveMetadata, mergeMetadata, extractFromPyproject, deriveContextDefaults } =
   require('../skills/gen-docs/scripts/lib/metadata-autofill');
 
 function makeReadFile(files) {
@@ -140,5 +140,44 @@ describe('mergeMetadata', () => {
     const { merged, applied } = mergeMetadata({}, { year: '2026' });
     expect(merged.year).toBe('2026');
     expect(applied).toEqual(['year']);
+  });
+
+  test('merges arbitrary keys not in the legacy whitelist', () => {
+    const { merged, applied } = mergeMetadata(
+      { system_name: 'Пилот' },
+      { port: '5173', project_dir: 'pilot', system_url: 'pilot.example.com' },
+    );
+    expect(merged.system_name).toBe('Пилот');
+    expect(merged.port).toBe('5173');
+    expect(merged.project_dir).toBe('pilot');
+    expect(merged.system_url).toBe('pilot.example.com');
+    expect(applied.sort()).toEqual(['port', 'project_dir', 'system_url']);
+  });
+
+  test('does not copy the special "sources" key', () => {
+    const { merged } = mergeMetadata({}, { year: '2026', sources: { year: 'system-date' } });
+    expect(merged.sources).toBeUndefined();
+  });
+});
+
+describe('deriveContextDefaults', () => {
+  test('derives port and system_url from app.url', () => {
+    const out = deriveContextDefaults({
+      app: { url: 'http://localhost:5173' },
+      project_path: '/tmp/my-project',
+    });
+    expect(out.port).toBe('5173');
+    expect(out.system_url).toBe('localhost:5173');
+    expect(out.project_dir).toBe('my-project');
+  });
+
+  test('falls back to default ports for http / https without explicit port', () => {
+    expect(deriveContextDefaults({ app: { url: 'http://example.com' } }).port).toBe('80');
+    expect(deriveContextDefaults({ app: { url: 'https://example.com' } }).port).toBe('443');
+  });
+
+  test('returns empty object for missing app or invalid url', () => {
+    expect(deriveContextDefaults({})).toEqual({});
+    expect(deriveContextDefaults({ app: { url: 'not-a-url' } })).toEqual({});
   });
 });

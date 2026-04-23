@@ -52,3 +52,10 @@ lang: ru-RU
 
 # Устранение неполадок
 <!-- AGENT: Common issues table: | Проблема | Возможная причина | Решение | -->
+
+# Административные экраны
+
+<!-- GEN:page-description role="admin" -->
+
+<!-- GEN:security-section -->
+

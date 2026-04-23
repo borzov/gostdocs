@@ -91,8 +91,32 @@ const raw = baseElement.extend({
   content: z.string().min(1),
 });
 
+const pageChecklistItem = z.object({
+  label: z.string().min(1),
+  filled: z.boolean(),
+  value: z.any().nullable().optional(),
+  count: z.number().int().nullable().optional(),
+  source: z.enum(['inspection', 'manual']).default('inspection'),
+});
+
+const pageDescription = baseElement.extend({
+  type: z.literal('page-description'),
+  page_id: z.string().min(1),
+  title: z.string().min(1),
+  file: z.string().min(1),
+  // Markdown heading depth for the per-page sub-heading. Default 2 so that a
+  // page-description nested under an H1 chapter ("# Описание операций")
+  // becomes "## Главная" → numbering 4.1 (not "### …" → 4.0.1).
+  level: z.number().int().min(1).max(6).optional(),
+  // Russian narrative paragraph generated from the inspection JSON; used by
+  // end-user guides instead of the QA-style English checklist.
+  narrative: z.string().nullable().optional(),
+  description: z.string().nullable().optional(),
+  checklist: z.array(pageChecklistItem).default([]),
+});
+
 const element = z.discriminatedUnion('type', [
-  paragraph, figure, table, admonition, checklistResult, code, raw,
+  paragraph, figure, table, admonition, checklistResult, code, raw, pageDescription,
 ]);
 
 /** @type {any} */

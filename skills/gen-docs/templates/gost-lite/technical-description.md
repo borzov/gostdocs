@@ -44,10 +44,17 @@ Source: doc-researcher DATABASE -->
 <!-- AGENT: Endpoints table: | Метод | URL | Описание | Авторизация |
 Source: doc-researcher ROUTES + AUTH -->
 
-# Безопасность
-<!-- AGENT: Auth mechanisms, encryption, access control, security measures.
-Source: doc-researcher AUTH + spec-reader SECURITY REQUIREMENTS -->
+# Архитектура
+
+<!-- GEN:mermaid source="architecture" title="Общая архитектура системы" -->
+
+# Структура базы данных
+
+<!-- GEN:db-schema scope="all" headingLevel="3" -->
 
 # Масштабирование и отказоустойчивость
 <!-- AGENT: Scaling strategy, HA approach, load balancing, replication.
 Source: doc-researcher DEPLOYMENT + spec-reader NON-FUNCTIONAL REQUIREMENTS -->
+
+<!-- GEN:security-section -->
+

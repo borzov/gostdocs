@@ -129,29 +129,52 @@ def fix_images(doc: Document) -> None:
 
 
 def number_figures(doc: Document) -> None:
-    """Add 'Рисунок N —' numbering to figure captions."""
+    """Add 'Рисунок N —' numbering to figure captions that are not yet numbered.
+
+    The Doc-Model renderer already emits captions like "Рисунок 1.1 — Home" —
+    for those we keep the value as-is and do NOT advance the counter so our
+    post-hoc numbering stays aligned with any captions the agent added by hand.
+    """
     figure_num = 0
+    caption_styles = ("Image Caption", "Caption", "Captioned Figure")
     for paragraph in doc.paragraphs:
         style_name = paragraph.style.name if paragraph.style else ""
+        if style_name not in caption_styles:
+            continue
 
-        # Detect image caption: paragraph right after an image, or Caption/Figure style
-        if style_name in ("Image Caption", "Caption", "Captioned Figure"):
-            if paragraph.text and not paragraph.text.startswith("Рисунок"):
-                figure_num += 1
-                # Prepend numbering
-                if paragraph.runs:
-                    paragraph.runs[0].text = f"Рисунок {figure_num} — {paragraph.runs[0].text}"
-                else:
-                    paragraph.text = f"Рисунок {figure_num} — {paragraph.text}"
-                set_paragraph_indent_zero(paragraph._element)
-                continue
+        text = paragraph.text or ""
+        if text.startswith("Рисунок ") or text.startswith("Figure "):
+            set_paragraph_indent_zero(paragraph._element)
+            continue
 
-        # Also check for paragraphs that contain ONLY text (no images) right after
-        # an image paragraph — pandoc puts alt text as separate paragraph
-        has_image = bool(paragraph._element.findall(f".//{qn('wp:inline')}"))
-        if has_image:
-            # The next paragraph might be the caption
-            pass
+        if not text.strip():
+            continue
+
+        figure_num += 1
+        prefix = f"Рисунок {figure_num} — "
+        if paragraph.runs:
+            paragraph.runs[0].text = prefix + paragraph.runs[0].text
+        else:
+            paragraph.text = prefix + text
+        set_paragraph_indent_zero(paragraph._element)
+
+
+def force_update_fields_on_open(doc: Document) -> None:
+    """Add ``w:updateFields`` to ``word/settings.xml`` so Word recomputes the
+    TOC page numbers automatically when the document is opened.
+
+    Idempotent — existing element is flipped to ``val="true"`` instead of
+    duplicated.
+    """
+    settings = doc.settings.element
+    tag = qn("w:updateFields")
+    existing = settings.find(tag)
+    if existing is None:
+        element = OxmlElement("w:updateFields")
+        element.set(qn("w:val"), "true")
+        settings.append(element)
+    else:
+        existing.set(qn("w:val"), "true")
 
 
 def fix_toc(doc: Document) -> None:
@@ -470,6 +493,9 @@ def main() -> None:
 
     # Replace emoji
     replace_emoji(doc)
+
+    # Force Word to refresh TOC page numbers on open
+    force_update_fields_on_open(doc)
 
     # Add paragraph indent to body text only (strict GOST mode)
     if font_name == "Times New Roman":

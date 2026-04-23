@@ -53,6 +53,42 @@ describe('element validation', () => {
     });
     expect(dm.validate(doc).sections[0].elements[0].items).toHaveLength(1);
   });
+
+  test('page-description requires page_id, title, file', () => {
+    const { doc, s } = baseDoc();
+    dm.addElement(s, { type: 'page-description', page_id: 'home', title: 'Главная', file: 'guest/home.png', checklist: [] });
+    const v = dm.validate(doc);
+    expect(v.sections[0].elements[0].page_id).toBe('home');
+    expect(v.sections[0].elements[0].file).toBe('guest/home.png');
+    expect(v.sections[0].elements[0].checklist).toEqual([]);
+  });
+
+  test('page-description checklist items carry count/value/source', () => {
+    const { doc, s } = baseDoc();
+    dm.addElement(s, {
+      type: 'page-description',
+      page_id: 'events',
+      title: 'Каталог',
+      file: 'guest/events.png',
+      checklist: [
+        { label: 'breadcrumb', filled: true, value: 'Главная / Мероприятия', source: 'inspection' },
+        { label: 'columns', filled: true, count: 5, source: 'inspection' },
+        { label: 'pagination', filled: false, source: 'manual' },
+      ],
+      description: 'Страница каталога.',
+    });
+    const v = dm.validate(doc);
+    const el = v.sections[0].elements[0];
+    expect(el.checklist).toHaveLength(3);
+    expect(el.checklist[1].count).toBe(5);
+    expect(el.description).toBe('Страница каталога.');
+  });
+
+  test('page-description rejects missing required fields', () => {
+    const { doc, s } = baseDoc();
+    dm.addElement(s, { type: 'page-description', title: 'Главная', file: 'x.png', checklist: [] });
+    expect(() => dm.validate(doc)).toThrow();
+  });
 });
 
 describe('walkSections + countElements', () => {

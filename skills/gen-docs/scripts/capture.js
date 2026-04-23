@@ -33,6 +33,7 @@ const manifestLib = require('./lib/manifest');
 const routes = require('./lib/routes');
 const dismiss = require('./lib/dismiss');
 const actionExecutor = require('./lib/action-executor');
+const interactions = require('./lib/interactions');
 const listScrape = require('./lib/list-scrape');
 const idResolver = require('./adapters/id-resolver');
 const authAdapter = require('./adapters/auth');
@@ -261,9 +262,26 @@ async function captureGroup({ browser, metaData, tuples, authCtxCache, manifest,
         continue;
       }
 
-      await page.goto(url, { waitUntil: 'networkidle' });
+      const finalUrl = interactions.buildUrlWithQuery(url, tuple.query_params);
+      await page.goto(finalUrl, { waitUntil: 'networkidle' });
       await dismiss.applyDismiss(page, [...globalDismiss, ...((tuple.actions || []).flatMap((a) => a.dismiss || []))]);
       await page.waitForTimeout(waitMs);
+
+      // Per-page interactions (FAQ accordion expansion, search field fill,
+      // filter button click) run BEFORE actions so the action-driven multi-
+      // shot loop sees the prepared state.
+      const interactionSteps = interactions.interactionsToActionSteps(tuple.interactions);
+      if (interactionSteps.length > 0) {
+        const ir = await actionExecutor.executeActions(page, interactionSteps, {
+          dismissFn: (selectors) => dismiss.applyDismiss(page, selectors),
+        });
+        for (const err of ir.errors) {
+          manifest.warnings.push({
+            scope: `interactions:${tuple.pageId}`,
+            message: `${err.stage} step ${err.step}: ${err.message}`,
+          });
+        }
+      }
 
       // Actions (modals, filters applied, etc.) — produce either the final
       // shot (default) or multiple shots when steps set `screenshot: true`.

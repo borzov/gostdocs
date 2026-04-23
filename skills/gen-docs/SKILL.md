@@ -516,48 +516,68 @@ Steps:
 7. Return the manifest.json content.
 ```
 
-## Phase 3: Markdown Generation
+## Phase 6: Generation (v0.3)
 
-For each selected document type:
+Phase 6 is a deterministic orchestrator — it does NOT fill templates by hand.
+The orchestrator reads `templates/gost-{mode}/{doc_type}.md`, expands every
+`<!-- GEN:* -->` directive through the adapter map
+(schema-model / mermaid / journey-render / security-recommendations / inspection
+checklist / metadata autofill), validates the Doc-Model, renders Markdown via
+`doc-model-md.render`, runs `md-lint`, and writes
+`{project}/docs/generated/{doc-type}.md`.
 
-1. Read the appropriate template from `templates/{gost_mode}/{doc_type}.md`
-2. Read results from all three subagents
-3. Read the screenshot manifest
-4. Generate the full Markdown document:
-   - Fill every section with real content from research results
-   - Insert screenshot references: `![Рисунок — Описание](../screenshots/{filename})`
-   - For strict mode: generate title page from `title-page.md` template with metadata
-   - Write comprehensive, detailed content — NOT placeholder text
-   - All user-facing text in Russian
-   - Technical terms and code examples in English
+### CLI
+```
+node scripts/generate.js --config docs/meta.yaml
+node scripts/generate.js --config docs/meta.yaml --only user-guide
+node scripts/generate.js --config docs/meta.yaml --dry-run
+node scripts/generate.js --config docs/meta.yaml --lang ru,en
+```
 
-**CRITICAL — Markdown formatting rules:**
-- **DO NOT put numbers in headings.** Use `# Введение`, NOT `# 1 Введение`. Pandoc adds section numbers automatically via `--number-sections`.
-- **DO NOT use `# Title` then `## Subtitle` as first two headings.** Start directly with `# Введение` as the first section. The document title comes from YAML frontmatter `title:` field.
-- **Figure captions:** Use pandoc implicit_figures format: `![Рисунок — Описание](path.png)` — pandoc auto-numbers figures.
-- **Table captions:** Place caption BEFORE the table using `: Описание таблицы` syntax (pandoc table caption).
-- **All headings in Russian.** No English headings whatsoever.
-- **NO horizontal rules.** Do NOT use `---` or `***` as section separators. They create ugly HR lines in DOCX.
-- **NO emoji or special Unicode characters.** Do NOT use checkboxes (☑☐), icons, or emoji. Use plain text: `[V] Включено`, `[ ] Выключено`.
-- **Bold text sparingly.** Only bold key terms on FIRST mention, button/menu names in instructions, and table header row. Do NOT bold repeated words or phrases already established in context.
-- **Table headers:** The first row of every table MUST use bold. This is handled by postprocessing.
-- **Table captions:** Place caption BEFORE the table using pandoc syntax: `: Таблица — Описание` on a line by itself before the table.
-- **YAML frontmatter** at the top of every generated file:
-  ```yaml
-  ---
-  title: "Название системы. Руководство пользователя"
-  lang: ru-RU
-  ---
-  ```
+### Preconditions
+- `docs/meta.yaml` valid (v0.3 schema). v0.2 auto-migrates on load.
+- `docs/screenshots/manifest.json` present (produced by `capture.js`).
+- `docs/generated/_inspection/**/*.json` present (produced by `ui-inspector.js`).
+- `docs/generated/_research/coverage.json` + topic `.md` files (from `research.js`).
+- For `GEN:db-schema`: `docs/generated/_research/schema.json` (from schema-adapter).
+- For `GEN:mermaid`: source block in `docs/generated/_research/<name>.md`
+  or standalone `docs/generated/_research/<name>.mmd`.
 
-**Quality requirements for generated content:**
-- Each section minimum 200-500 words (except short structural sections)
-- Step-by-step instructions must include numbered steps with expected results
-- Every screenshot must have a descriptive caption in Russian
-- Error handling sections must list specific errors with solutions
-- Configuration sections must describe every parameter
+### GEN:* directive catalog
 
-Save generated files to `{project_path}/docs/generated/`.
+| Directive | Expander | Effect |
+|---|---|---|
+| `GEN:metadata key="organization"` | `metadata-autofill.merge` | Paragraph from `meta.metadata` or derived fields |
+| `GEN:mermaid source="architecture" title="…"` | `adapters/mermaid.renderToDocModelElement` | PNG figure rendered via local mmdc, centered by postprocess |
+| `GEN:db-schema scope="all" headingLevel="3"` | `lib/schema-model.buildMarkdown` | Markdown tables per DB table with FKs + indexes |
+| `GEN:journey role="user"` | `lib/journey-render.renderJourneysSection` | Numbered step sequences with figures per journeys.yaml |
+| `GEN:security-section` | `lib/security-recommendations.buildSection` | Full security recommendations section scoped to docType |
+| `GEN:page-description role="user" headingLevel="3"` | `inspection-store` + `lib/page-narrative.buildPageNarrative` | One sub-section per capture: figure + Russian narrative paragraph derived from inspection JSON (`component_kind_notes` + structured action/filter/table/modal sentences). `headingLevel` defaults to **2** so a directive nested under `# Описание операций` renders as `## Page` → numbering `4.1` (not `4.0.1`). The legacy English checklist (`[V] heading: ...`) is no longer emitted into end-user docs. |
+| `GEN:pagebreak` | inline | `\pagebreak` (pandoc raw) |
+| `GEN:centered-block` / `GEN:end-centered` | inline | Wraps content in `::: {.center}` div |
+| `GEN:include template="title-page"` | loads sub-template | Inlines sub-template sections |
+
+Unknown directives log a warning to `ctx.warnings[]` and are dropped.
+
+### Strict vs lite
+
+- **strict**: md-lint errors, missing NFR sections, or unresolved GEN:*
+  blockers → `exitCode = 1`. Generation still writes files so the user can
+  inspect what is missing before the next run.
+- **lite**: every blocker becomes a warning. `exitCode = 0` always.
+
+### Output
+`docs/generated/<doc-type>.md` with:
+- Doc-Model-emitted figures and tables (auto-numbered per top-level section).
+- Auto-numbered headings deferred to pandoc `--number-sections`.
+- No LaTeX escape sequences in hand-written paragraphs (use `GEN:pagebreak`).
+- Image refs relative to `docs/` (e.g. `screenshots/guest/desktop/home.png`).
+
+### How to add a new GEN directive
+1. Add an expander inside `buildExpanders()` in `scripts/generate.js`.
+2. Add fixture test cases in `tests/template-loader.test.js` and
+   `tests/generate.test.js`.
+3. Document it under the catalog above.
 
 ## Phase 4: DOCX Conversion
 
@@ -570,12 +590,19 @@ pandoc \
   --reference-doc={skill_path}/templates/reference-{gost_mode}.docx \
   --toc --toc-depth=3 \
   --number-sections \
+  --top-level-division=section \
   -M lang=ru-RU \
   -M toc-title="Содержание" \
-  --resource-path={project_path}/docs/screenshots \
+  --resource-path={project_path}/docs \
   -o {project_path}/docs/output/{doc_name}.docx \
   {project_path}/docs/generated/{doc_name}.md
 ```
+
+`--resource-path` points at `docs/`, not `docs/screenshots/`, because Doc-Model
+emits image refs relative to `docs/` (e.g. `screenshots/...`, `generated/_diagrams/...`).
+
+The postprocess step additionally injects `w:updateFields=true` into
+`word/settings.xml`, which makes Word recompute TOC page numbers on first open.
 
 **Important pandoc flags explained:**
 - `-M toc-title="Содержание"` — Russian title instead of "Table of Contents"
@@ -600,22 +627,54 @@ Create output directory if it doesn't exist: `mkdir -p {project_path}/docs/outpu
 
 After conversion, save `meta.yaml` to `{project_path}/docs/meta.yaml` with all parameters used.
 
-## Template Variables
+## Template authoring (v0.3)
 
-Templates use these placeholders that the generator replaces:
+Templates under `templates/gost-{strict|lite}/*.md` define the document
+skeleton: YAML frontmatter, heading structure, plain-prose paragraphs, and
+`<!-- GEN:* -->` directives at the points where adapters inject content.
+Legacy `<!-- AGENT: ... -->` comments — single-line **and** multi-line — are
+stripped by the template loader and no longer affect generation. Plain prose
+inside a template flows through to the final Markdown unchanged.
 
-| Placeholder | Source |
-|-------------|--------|
-| `{system_name}` | meta.yaml or spec-reader |
-| `{system_purpose}` | spec-reader or doc-researcher |
-| `{features_list}` | doc-researcher |
-| `{routes}` | doc-researcher |
-| `{config_params}` | doc-researcher |
-| `{db_entities}` | doc-researcher |
-| `{auth_model}` | doc-researcher |
-| `{user_roles}` | spec-reader |
-| `{tech_stack}` | doc-researcher |
-| `{screenshots}` | screenshotter manifest |
+### Mustache `{key}` substitution
+
+Templates can use single-brace `{key}` placeholders in plain prose, frontmatter,
+and inside fenced code blocks. Before parsing, `lib/mustache-resolve` replaces
+each token with `ctx.metadata[key]`:
+- known keys (`system_name`, `version`, `port`, `system_url`, `project_dir`,
+  …) come from `meta.metadata` plus `lib/metadata-autofill.deriveContextDefaults`
+  (port + system_url are parsed from `meta.app.url`, project_dir from
+  `meta.project_path`);
+- the `metadata` block in `meta.yaml` is now `.passthrough()` — any extra
+  string key (`db_user`, `db_name`, `repo_url`, `migration_command`,
+  `seed_command`, `service_name`, …) is forwarded verbatim;
+- unresolved keys are kept verbatim AND emit a `mustache` warning per
+  occurrence (line + filename).
+- `${shell}` expansions are NOT touched (negative lookbehind in the regex);
+- cyrillic-in-braces (`{Название роли}`) is ignored — the regex only matches
+  `[a-z][a-z0-9_]*`;
+- code fences with `# Comment` lines are correctly preserved by the loader's
+  `fenceMaskedLines` pass — bash comments never split into bogus sections.
+
+### Page-level capture controls
+
+Each entry under `pages:` accepts new optional fields:
+- `access_role: guest|guest-only|user|admin|…` — pin a page to one role.
+  `buildMatrix()` skips role-page pairs that don't match. Without this field
+  the legacy cross-product behaviour applies.
+- `query_params: { format: online, sort: -starts_at }` — appended to the URL
+  via `lib/interactions.buildUrlWithQuery` so filtered list views can be
+  captured without inventing extra page IDs.
+- `interactions: [{ action: click|fill|expand|wait_for|wait_ms|scroll, selector, value, ms }]`
+  — executed after `page.goto()` and before screenshot. Translated to the
+  existing action-executor format by `lib/interactions.interactionsToActionSteps`.
+  Use this for FAQ accordion expansion, search field fill, filter buttons.
+- `section: public|personal|admin` — informational grouping label, available
+  to template authors who want to split `page-description` blocks.
+
+Mustache-style substitutions like `{system_name}` are discouraged — use
+`<!-- GEN:metadata key="system_name" -->` so the value travels through the
+merged-metadata pipeline.
 
 ## GOST Standards Reference
 

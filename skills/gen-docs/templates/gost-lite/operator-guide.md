@@ -45,3 +45,10 @@ Include escalation contacts and recovery steps. -->
 # Взаимодействие со смежными системами
 <!-- AGENT: External integrations, APIs, data exchange protocols, dependent services.
 Source: doc-researcher SYSTEM OVERVIEW + spec-reader INTEGRATIONS -->
+
+# Операторские экраны
+
+<!-- GEN:page-description role="operator" -->
+
+<!-- GEN:security-section -->
+
