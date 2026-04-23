@@ -289,11 +289,111 @@ digraph gen_docs {
 }
 ```
 
-## Phase 1: Parameter Collection
+## Phase 1: Parameter Collection (init-meta flow)
 
-Check if `docs/meta.yaml` exists in the project. If yes, offer to reuse previous settings. Otherwise, collect parameters interactively.
+The orchestrator MUST NOT compose `meta.yaml` by hand. Instead it drives
+`scripts/init-meta.js`, which scans the project, derives everything it can,
+and reports the remaining gaps as a structured list. The orchestrator then
+asks the user only about those gaps (one batched `AskUserQuestion` per
+≤4 fields, critical first).
 
-### Questions to ask (via AskUserQuestion):
+### Step 1.1 — Report
+
+```bash
+node {skill_path}/scripts/init-meta.js --report --project-path {project_path} > /tmp/init-meta-report.json
+```
+
+The JSON envelope:
+
+```json
+{
+  "proposed_meta": { ... full meta.yaml-shaped object ... },
+  "gaps": [
+    {
+      "field": "metadata.system_name",
+      "question": "Как называется система?",
+      "header": "System name",
+      "default": "ruvents-events",
+      "default_source": "package.json name",
+      "importance": "high",
+      "secret": false
+    }
+  ],
+  "sources": { "db_user": ".env.example", "service_name": "docker-compose.yml", ... },
+  "framework": "laravel",
+  "routes_count": 12,
+  "config_path": "/path/to/docs/meta.yaml"
+}
+```
+
+Existing `docs/meta.yaml` (if any) is loaded first; values the user already
+typed are preserved and never re-asked.
+
+### Step 1.2 — Ask the user (group critical-first, ≤4 per call)
+
+For each gap the orchestrator must:
+
+1. Show the **exact** Russian `question` text.
+2. Pre-fill the `default` so the user can confirm with one click.
+3. Use a separate `AskUserQuestion` call for `secret: true` gaps
+   (passwords, API keys) so they aren't visible alongside other answers.
+4. Group remaining gaps into batches of ≤4, sorted by importance
+   (critical → high → medium → optional). Use `lib/gap-collector.batchGaps`
+   logic if running in JS, or do it manually otherwise.
+
+If the user declines an optional gap (e.g., `metadata.repo_url`), record
+the literal string `—` (em dash) so mustache substitutes a stable value
+instead of leaving the placeholder visible.
+
+### Step 1.3 — Apply
+
+Write the collected answers as a flat dotted-path map to `/tmp/answers.json`:
+
+```json
+{
+  "app.url": "http://localhost:5173",
+  "metadata.system_name": "RUVENTS Events",
+  "metadata.organization": "ООО «РУВЕНТС»",
+  "metadata.doc_code": "RVNT.МР.34.01",
+  "metadata.version": "1.0",
+  "metadata.repo_url": "—",
+  "auth.roles[admin].username": "admin@example.com",
+  "auth.roles[admin].password": "..."
+}
+```
+
+Then:
+
+```bash
+node {skill_path}/scripts/init-meta.js --apply /tmp/answers.json --project-path {project_path}
+```
+
+This writes `docs/meta.yaml` (validated against the v0.3 schema) and adds
+it to `.gitignore` automatically.
+
+### What the orchestrator does NOT need to ask
+
+`init-meta --report` already auto-derives the following from the project:
+
+| Field | Source |
+|---|---|
+| framework | `artisan` / `manage.py` / `package.json` deps (root or `backend/`/`frontend/`) |
+| metadata.db_user, db_name, db_host, db_port | `.env.example` / `.env.template` (Laravel/Postgres/MySQL conventions) |
+| metadata.service_name | `docker-compose.yml` services (`app`/`web`/`backend`/first) |
+| metadata.migration_command, seed_command | Makefile targets > package.json scripts > framework default |
+| metadata.port, system_url | parsed from `meta.app.url` |
+| metadata.project_dir | basename of `meta.project_path` |
+| metadata.repo_url | `git remote get-url origin` (asked only when no remote) |
+| metadata.version, organization, responsible | `metadata-autofill` (git tag, `package.json`, git config) |
+| pages | `lib/route-discover` (Vue Router, Next.js App Router, Laravel routes/web.php, Django urls.py — root or monorepo subdirs) |
+| auth.roles | discovered during research (auth-discovery adapter); credentials always asked |
+
+The only fields that are unconditionally asked: **per-role credentials**
+(security), **`metadata.organization`** and **`metadata.doc_code`** (formal
+attestation that needs a human), **`metadata.system_name`** (unless
+package.json has a name the user accepts).
+
+### Legacy reference: questions to ask (only when init-meta is unavailable)
 
 **Q1** (multiSelect): Which documents to generate?
 - User Guide (Руководство пользователя)

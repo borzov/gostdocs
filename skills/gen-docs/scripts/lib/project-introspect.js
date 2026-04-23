@@ -68,10 +68,14 @@ const FRAMEWORK_MARKERS = [
 
 function detectFramework(projectPath, opts = {}) {
   const fs = opts.fs || fsDefault;
-  for (const marker of FRAMEWORK_MARKERS) {
-    for (const file of marker.files) {
-      if (exists(fs, path.join(projectPath, file))) {
-        return { framework: marker.framework, source: file };
+  // Common monorepo subdirectories — same markers, different roots.
+  const SUBDIRS = ['', 'backend/', 'frontend/', 'apps/backend/', 'apps/api/', 'apps/web/', 'apps/frontend/', 'server/', 'client/', 'web/'];
+  for (const sub of SUBDIRS) {
+    for (const marker of FRAMEWORK_MARKERS) {
+      for (const file of marker.files) {
+        if (exists(fs, path.join(projectPath, sub + file))) {
+          return { framework: marker.framework, source: sub + file };
+        }
       }
     }
   }
