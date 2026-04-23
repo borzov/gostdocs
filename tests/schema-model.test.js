@@ -84,6 +84,77 @@ describe('buildMarkdown', () => {
     expect(md).toMatch(/b, c \(UNIQUE\)/);
   });
 
+  test('buildErdMermaid synthesises entity blocks and fk relationships', () => {
+    const src = schemaModel.buildErdMermaid({
+      source: 'pg',
+      tables: [
+        {
+          name: 'users',
+          comment: null,
+          columns: [
+            { name: 'id',    type: 'bigint',  nullable: false, default: null, primary: true,  unique: false, comment: null },
+            { name: 'email', type: 'varchar', nullable: false, default: null, primary: false, unique: true,  comment: null },
+          ],
+          foreign_keys: [],
+          indexes: [],
+        },
+        {
+          name: 'posts',
+          comment: null,
+          columns: [
+            { name: 'id',      type: 'bigint', nullable: false, default: null, primary: true,  unique: false, comment: null },
+            { name: 'user_id', type: 'bigint', nullable: false, default: null, primary: false, unique: false, comment: null },
+          ],
+          foreign_keys: [{
+            columns: ['user_id'],
+            references_table: 'users',
+            references_columns: ['id'],
+            on_delete: 'CASCADE',
+            on_update: null,
+          }],
+          indexes: [],
+        },
+      ],
+      warnings: [],
+    });
+    expect(src).toMatch(/^erDiagram/);
+    expect(src).toMatch(/USERS \{[\s\S]+?bigint id PK/);
+    expect(src).toMatch(/varchar email UK/);
+    expect(src).toMatch(/POSTS \{[\s\S]+?bigint user_id FK/);
+    expect(src).toMatch(/USERS \|\|--o\{ POSTS : "user_id"/);
+  });
+
+  test('buildErdMermaid returns null for an empty schema', () => {
+    expect(schemaModel.buildErdMermaid(null)).toBeNull();
+    expect(schemaModel.buildErdMermaid({ source: 'x', tables: [], warnings: [] })).toBeNull();
+  });
+
+  test('renders every index on a separate bulleted line (regression)', () => {
+    // Regression: before Phase 6D the rendered DOCX collapsed the bullet
+    // list into a single run-on paragraph ("Индексы: - idx1: a - idx2: b …").
+    // That turned out to be a template-loader side-effect, but the schema
+    // emitter itself must always produce one "- " per index so downstream
+    // renderers cannot glue them together accidentally.
+    const md = schemaModel.buildMarkdown({
+      source: 'pg',
+      tables: [{
+        name: 'action_log', comment: null, columns: [], foreign_keys: [],
+        indexes: [
+          { name: 'idx_action_log_action',  columns: ['action'],         unique: false },
+          { name: 'idx_action_log_created', columns: ['created_at'],     unique: false },
+          { name: 'idx_action_log_entity',  columns: ['entity_type', 'entity_id'], unique: false },
+          { name: 'idx_action_log_ip',      columns: ['ip_address'],     unique: false },
+          { name: 'idx_action_log_result',  columns: ['result'],         unique: false },
+          { name: 'idx_action_log_user_created', columns: ['user_id', 'created_at'], unique: false },
+        ],
+      }],
+      warnings: [],
+    });
+    const idxBlock = md.split('**Индексы:**')[1] || '';
+    const bulletLines = idxBlock.split('\n').filter((l) => /^\s*-\s+idx_action_log_/.test(l));
+    expect(bulletLines).toHaveLength(6);
+  });
+
   test('english lang', () => {
     const md = schemaModel.buildMarkdown(
       {

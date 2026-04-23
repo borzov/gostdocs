@@ -1,0 +1,153 @@
+'use strict';
+
+/**
+ * Render the three GOST scaling subsections for a technical description
+ * from a scaling-scan.scanScaling() result. Invoked via
+ * `<!-- GEN:tech-scaling headingLevel="2" -->`.
+ */
+
+const STRINGS = {
+  ru: {
+    horizontal_title: 'Горизонтальное масштабирование',
+    vertical_title:   'Вертикальное масштабирование',
+    fault_title:      'Отказоустойчивость',
+    detected:         'Обнаружено:',
+    horizontal_default: 'Горизонтальное масштабирование возможно средствами контейнеризации (несколько экземпляров приложения за балансировщиком). Конкретная стратегия масштабирования уточняется при подготовке к промышленной эксплуатации.',
+    vertical_default:   'Вертикальное масштабирование выполняется через изменение ресурсов (CPU/RAM/диск) контейнеров или виртуальных машин. Конкретные лимиты и бенчмарки определяются при нагрузочном тестировании.',
+    fault_default:      'Отказоустойчивость обеспечивается средствами контейнерной среды (политика перезапуска, healthcheck) и средствами фреймворка. Конкретные меры резервирования данных уточняются при подготовке к промышленной эксплуатации.',
+    horizontal_intro: {
+      compose_replicas:  'Конфигурация docker-compose содержит директиву replicas — приложение может запускаться в нескольких экземплярах.',
+      k8s_hpa:           'В кластере Kubernetes используется HorizontalPodAutoscaler — масштабирование по нагрузке настроено.',
+      k8s_deployment:    'Приложение упаковано как Kubernetes Deployment — допускает увеличение replicaCount.',
+      k8s_statefulset:   'Компоненты с состоянием (БД / очередь) развёрнуты как StatefulSet.',
+      pm2_cluster:       'Node.js-приложение запускается в cluster-режиме PM2 — нагрузка распределяется между CPU-ядрами.',
+      workers:           'Найдены библиотеки фоновых очередей — тяжёлые задачи выполняются отдельными воркерами.',
+    },
+    vertical_intro: {
+      compose_resources: 'В docker-compose заданы лимиты ресурсов для сервисов.',
+      k8s_limits:        'В Kubernetes-манифестах заданы resources.limits для контейнеров.',
+    },
+    fault_intro: {
+      healthchecks:      'В docker-compose настроены healthcheck-директивы.',
+      probes:            'Kubernetes использует livenessProbe / readinessProbe для контейнеров.',
+      restart_policy:    'В docker-compose задана политика автоматического перезапуска контейнеров.',
+      db_read_replica:   'Обнаружены признаки реплик чтения базы данных — возможна горизонтальная масштабируемость чтения.',
+    },
+    cache_intro:         'Обнаружены инструменты кеширования для снижения нагрузки на БД:',
+    lb_intro:            'Обнаружены балансировщики / reverse-proxy:',
+  },
+  en: {
+    horizontal_title: 'Horizontal scaling',
+    vertical_title:   'Vertical scaling',
+    fault_title:      'Fault tolerance',
+    detected:         'Detected:',
+    horizontal_default: 'Horizontal scaling is feasible through containerisation (several application instances behind a load balancer). The specific strategy is to be confirmed during production rollout.',
+    vertical_default:   'Vertical scaling is performed by adjusting container or VM resources (CPU/RAM/disk). Specific limits are to be determined during load testing.',
+    fault_default:      'Fault tolerance relies on container runtime primitives (restart policy, healthcheck) and framework capabilities. Specific data redundancy measures are to be confirmed during production rollout.',
+    horizontal_intro: {
+      compose_replicas:  'docker-compose declares the replicas directive — the application can run as multiple instances.',
+      k8s_hpa:           'The Kubernetes cluster runs a HorizontalPodAutoscaler — scaling by load is configured.',
+      k8s_deployment:    'The application ships as a Kubernetes Deployment — replicaCount can be increased.',
+      k8s_statefulset:   'Stateful components (DB / queues) are deployed as StatefulSets.',
+      pm2_cluster:       'The Node.js app runs in PM2 cluster mode — load is spread across CPU cores.',
+      workers:           'Background-queue libraries detected — heavy tasks run on dedicated workers.',
+    },
+    vertical_intro: {
+      compose_resources: 'docker-compose declares per-service resource limits.',
+      k8s_limits:        'Kubernetes manifests declare resources.limits for containers.',
+    },
+    fault_intro: {
+      healthchecks:      'docker-compose healthcheck directives are configured.',
+      probes:            'Kubernetes liveness/readiness probes are configured.',
+      restart_policy:    'docker-compose restart policy is set for automatic container restart.',
+      db_read_replica:   'Database read-replica hints detected — horizontal read scaling is available.',
+    },
+    cache_intro:         'Caching tools detected (reduce load on the primary datastore):',
+    lb_intro:            'Load balancers / reverse proxies detected:',
+  },
+};
+
+function pickLang(lang) { return lang === 'en' ? 'en' : 'ru'; }
+function slugify(input) {
+  return String(input || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'section';
+}
+
+function sectionOf(heading, level, elements) {
+  return { heading, level, slug: slugify(`scaling-${heading}`), elements, children: [] };
+}
+
+function flatten(map) {
+  const out = [];
+  for (const v of Object.values(map || {})) out.push(...v);
+  return out;
+}
+
+function buildHorizontal(scan, t) {
+  const intros = [];
+  const lines = [];
+  for (const [k, v] of Object.entries(scan.horizontal_scaling || {})) {
+    const intro = t.horizontal_intro[k];
+    if (intro) intros.push({ type: 'paragraph', text: intro });
+    lines.push({ type: 'paragraph', text: `${t.detected} ${v.join(', ')}.` });
+  }
+  const caches = flatten(scan.caching);
+  if (caches.length > 0) {
+    lines.push({ type: 'paragraph', text: `${t.cache_intro} ${caches.join(', ')}.` });
+  }
+  const lbs = flatten(scan.load_balancer);
+  if (lbs.length > 0) {
+    lines.push({ type: 'paragraph', text: `${t.lb_intro} ${lbs.join(', ')}.` });
+  }
+  if (intros.length === 0 && lines.length === 0) {
+    return [{ type: 'paragraph', text: t.horizontal_default }];
+  }
+  return [...intros, ...lines];
+}
+
+function buildVertical(scan, t) {
+  const intros = [];
+  const lines = [];
+  for (const [k, v] of Object.entries(scan.vertical_scaling || {})) {
+    const intro = t.vertical_intro[k];
+    if (intro) intros.push({ type: 'paragraph', text: intro });
+    lines.push({ type: 'paragraph', text: `${t.detected} ${v.join(', ')}.` });
+  }
+  if (intros.length === 0 && lines.length === 0) {
+    return [{ type: 'paragraph', text: t.vertical_default }];
+  }
+  return [...intros, ...lines];
+}
+
+function buildFault(scan, t) {
+  const intros = [];
+  const lines = [];
+  for (const [k, v] of Object.entries(scan.fault_tolerance || {})) {
+    const intro = t.fault_intro[k];
+    if (intro) intros.push({ type: 'paragraph', text: intro });
+    lines.push({ type: 'paragraph', text: `${t.detected} ${v.join(', ')}.` });
+  }
+  for (const [k, v] of Object.entries(scan.replication || {})) {
+    const intro = t.fault_intro[k];
+    if (intro) intros.push({ type: 'paragraph', text: intro });
+    lines.push({ type: 'paragraph', text: `${t.detected} ${v.join(', ')}.` });
+  }
+  if (intros.length === 0 && lines.length === 0) {
+    return [{ type: 'paragraph', text: t.fault_default }];
+  }
+  return [...intros, ...lines];
+}
+
+function buildTechScaling(scan, opts = {}) {
+  const t = STRINGS[pickLang(opts.lang)];
+  const level = Number(opts.headingLevel) > 0 ? Number(opts.headingLevel) : 2;
+  return [
+    sectionOf(t.horizontal_title, level, buildHorizontal(scan, t)),
+    sectionOf(t.vertical_title,   level, buildVertical(scan,   t)),
+    sectionOf(t.fault_title,      level, buildFault(scan,      t)),
+  ];
+}
+
+module.exports = {
+  buildTechScaling,
+  STRINGS,
+};

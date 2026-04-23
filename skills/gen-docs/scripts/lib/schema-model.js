@@ -147,6 +147,78 @@ function buildMarkdown(schema, opts = {}) {
   return out.join('\n').trim() + '\n';
 }
 
+/**
+ * Build a Mermaid erDiagram source for the schema. Used when a template
+ * requests `<!-- GEN:mermaid source="erd" -->` but no hand-written
+ * diagram lives in the research corpus. Works for any stack because it
+ * only depends on the normalised schema model.
+ *
+ * - Entity names are uppercased and sanitised to Mermaid identifiers.
+ * - Columns are emitted as "type name" with PK / FK / UK markers.
+ * - Foreign keys become `||--o{` (many-to-one) relationships by default.
+ * - Tables without columns are still emitted so isolated entities appear.
+ *
+ * The returned string is ready to feed into mermaidAdapter.renderMermaid().
+ */
+function sanitiseEntityName(raw) {
+  return String(raw || '')
+    .replace(/[^A-Za-z0-9_]/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .toUpperCase() || 'ENTITY';
+}
+
+function sanitiseColumnName(raw) {
+  return String(raw || '').replace(/[^A-Za-z0-9_]/g, '_');
+}
+
+function sanitiseColumnType(raw) {
+  const cleaned = String(raw || 'unknown').replace(/\s+/g, '_').replace(/[^A-Za-z0-9_()]/g, '');
+  return cleaned || 'unknown';
+}
+
+function buildErdMermaid(schema) {
+  if (!schema || !Array.isArray(schema.tables) || schema.tables.length === 0) {
+    return null;
+  }
+  const lines = ['erDiagram'];
+  const fkColumns = new Map();
+  for (const table of schema.tables) {
+    const flat = new Set();
+    for (const fk of table.foreign_keys || []) {
+      for (const col of fk.columns || []) flat.add(col);
+    }
+    fkColumns.set(table.name, flat);
+  }
+  for (const table of schema.tables) {
+    const entity = sanitiseEntityName(table.name);
+    lines.push(`  ${entity} {`);
+    const cols = Array.isArray(table.columns) ? table.columns : [];
+    if (cols.length === 0) {
+      lines.push('    unknown placeholder');
+    } else {
+      const fkSet = fkColumns.get(table.name) || new Set();
+      for (const col of cols) {
+        const markers = [];
+        if (col.primary) markers.push('PK');
+        if (fkSet.has(col.name)) markers.push('FK');
+        if (col.unique && !col.primary) markers.push('UK');
+        const marker = markers.length > 0 ? ` ${markers.join(',')}` : '';
+        lines.push(`    ${sanitiseColumnType(col.type)} ${sanitiseColumnName(col.name)}${marker}`);
+      }
+    }
+    lines.push('  }');
+  }
+  for (const table of schema.tables) {
+    for (const fk of table.foreign_keys || []) {
+      const from = sanitiseEntityName(table.name);
+      const to = sanitiseEntityName(fk.references_table);
+      const label = (fk.columns || []).join('_') || 'ref';
+      lines.push(`  ${to} ||--o{ ${from} : "${label}"`);
+    }
+  }
+  return lines.join('\n');
+}
+
 module.exports = {
   schema: schemaModelSchema,
   tableSchema,
@@ -156,5 +228,6 @@ module.exports = {
   validate,
   empty,
   buildMarkdown,
+  buildErdMermaid,
   columnTypeWithModifiers,
 };

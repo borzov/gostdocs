@@ -41,6 +41,12 @@ const templateLoader = require('./lib/template-loader');
 const mustacheResolve = require('./lib/mustache-resolve');
 const emptySectionGuard = require('./lib/empty-section-guard');
 const rolesSection = require('./lib/roles-section');
+const securityScan = require('./lib/security-scan');
+const techSecurityExpander = require('./lib/tech-security-expander');
+const scalingScan = require('./lib/scaling-scan');
+const techScalingExpander = require('./lib/tech-scaling-expander');
+const protocolsScan = require('./lib/protocols-scan');
+const stackDetector = require('./lib/stack-detector');
 const pageNarrative = require('./lib/page-narrative');
 const projectIntrospect = require('./lib/project-introspect');
 const mermaidAdapter = require('./adapters/mermaid');
@@ -381,7 +387,19 @@ function buildExpanders(ctx) {
     },
 
     mermaid: async (attrs) => {
-      const source = extractMermaidSourceFromResearch(attrs.source, ctx.researchMd);
+      let source = extractMermaidSourceFromResearch(attrs.source, ctx.researchMd);
+      // Automatic fallback: synthesize an ERD from the schema when the
+      // template asked for an "erd"/"er-diagram" but no hand-written
+      // diagram shipped with the research corpus. This gives
+      // technical-description a real entity-relationship diagram even
+      // on projects whose subagents did not emit an .mmd file.
+      if (!source && /^(erd|er[-_]?diagram|entity[-_]?relationship)$/i.test(attrs.source || '')) {
+        const synthesised = ctx.schema ? schemaModel.buildErdMermaid(ctx.schema) : null;
+        if (synthesised) {
+          source = synthesised;
+          pushWarning(ctx, 'mermaid', `ERD synthesised from schema.summary.json for source="${attrs.source}"`);
+        }
+      }
       if (!source) {
         pushWarning(ctx, 'mermaid', `no diagram source found for source="${attrs.source}"`);
         return null;
@@ -398,6 +416,148 @@ function buildExpanders(ctx) {
         element.file = relative.startsWith('..') ? element.file : relative;
       }
       return element;
+    },
+
+    'tech-security': (attrs) => {
+      const headingLevel = Number(attrs.headingLevel) > 0 ? Number(attrs.headingLevel) : 2;
+      const scan = ctx.securityScan || securityScan.scanSecurity(ctx.projectPath);
+      ctx.securityScan = scan;
+      const sections = techSecurityExpander.buildTechSecurity(scan, {
+        lang: ctx.lang,
+        headingLevel,
+      });
+      return sections.map((s) => ({ kind: 'section', section: s }));
+    },
+
+    'tech-stack-table': () => {
+      const framework = ctx.introspect && ctx.introspect.framework;
+      const stack = stackDetector.detectStack(ctx.projectPath, { framework });
+      ctx.stack = stack;
+      const lang = ctx.lang === 'en' ? 'en' : 'ru';
+      const L = lang === 'en'
+        ? { cat: 'Category', tech: 'Technology', ver: 'Version', purpose: 'Purpose',
+            lang: 'Programming language', fw: 'Framework', db: 'Database',
+            container: 'Containerisation', orchestr: 'Orchestration',
+            purpose_lang: 'Server-side logic', purpose_fw: 'Web framework',
+            purpose_db: 'Data storage', purpose_docker: 'Containerisation',
+            purpose_compose: 'Container orchestration',
+            unknown: 'to be confirmed' }
+        : { cat: 'Категория', tech: 'Технология', ver: 'Версия', purpose: 'Назначение',
+            lang: 'Язык программирования', fw: 'Фреймворк', db: 'База данных',
+            container: 'Контейнеризация', orchestr: 'Оркестрация',
+            purpose_lang: 'Серверная логика', purpose_fw: 'Веб-фреймворк',
+            purpose_db: 'Хранение данных', purpose_docker: 'Развёртывание',
+            purpose_compose: 'Управление контейнерами',
+            unknown: 'подлежит уточнению' };
+      const cell = (v) => (v === null || v === undefined || v === '') ? L.unknown : String(v);
+      const rows = [
+        [L.lang, cell(stack.language), cell(stack.language_version), L.purpose_lang],
+        [L.fw,   cell(stack.framework), cell(stack.framework_version), L.purpose_fw],
+        [L.db,   cell(stack.db_engine), cell(stack.db_version), L.purpose_db],
+        [L.container, 'Docker', L.unknown, L.purpose_docker],
+        [L.orchestr,  'Docker Compose', L.unknown, L.purpose_compose],
+      ];
+      return {
+        type: 'table',
+        caption: lang === 'en' ? 'Technology stack' : 'Стек используемых технологий',
+        headers: [L.cat, L.tech, L.ver, L.purpose],
+        rows,
+      };
+    },
+
+    'tech-components': () => {
+      const framework = ctx.introspect && ctx.introspect.framework;
+      const stack = ctx.stack || stackDetector.detectStack(ctx.projectPath, { framework });
+      ctx.stack = stack;
+      const lang = ctx.lang === 'en' ? 'en' : 'ru';
+      const L = lang === 'en'
+        ? {
+          app_title: 'Application server',
+          db_title: 'Database',
+          tech: '**Technology:**',
+          port: '**Port:**',
+          purpose: '**Purpose:**',
+          depends: '**Depends on:**',
+          unknown: 'to be confirmed',
+          app_purpose: 'Business logic, REST API, serving client requests.',
+          db_purpose: 'Persistent storage of application state, referential integrity.',
+          db_dep: 'application server (connection pool).',
+          app_dep: 'database.',
+        }
+        : {
+          app_title: 'Сервер приложения',
+          db_title: 'База данных',
+          tech: '**Технология:**',
+          port: '**Порты:**',
+          purpose: '**Назначение:**',
+          depends: '**Зависимости:**',
+          unknown: 'подлежит уточнению',
+          app_purpose: 'обработка бизнес-логики, предоставление REST API, обслуживание клиентских запросов.',
+          db_purpose: 'хранение данных системы, обеспечение целостности и консистентности данных.',
+          db_dep: 'сервер приложения (пул соединений).',
+          app_dep: 'база данных.',
+        };
+      const show = (v) => (v === null || v === undefined || v === '') ? L.unknown : String(v);
+
+      const appTech = [stack.language, stack.language_version].filter(Boolean).join(' ')
+        + (stack.framework ? ` + ${stack.framework}${stack.framework_version ? ' ' + stack.framework_version : ''}` : '');
+      const dbTech = [stack.db_engine, stack.db_version].filter(Boolean).join(' ');
+
+      const appSection = {
+        heading: L.app_title,
+        level: 3,
+        slug: 'server-app',
+        elements: [
+          { type: 'paragraph', text: `${L.tech} ${appTech.trim() || L.unknown}` },
+          { type: 'paragraph', text: `${L.port} ${show(stack.runtime_port)}` },
+          { type: 'paragraph', text: `${L.purpose} ${L.app_purpose}` },
+          { type: 'paragraph', text: `${L.depends} ${L.app_dep}` },
+        ],
+        children: [],
+      };
+      const dbSection = {
+        heading: L.db_title,
+        level: 3,
+        slug: 'server-db',
+        elements: [
+          { type: 'paragraph', text: `${L.tech} ${dbTech || L.unknown}` },
+          { type: 'paragraph', text: `${L.purpose} ${L.db_purpose}` },
+          { type: 'paragraph', text: `${L.depends} ${L.db_dep}` },
+        ],
+        children: [],
+      };
+      return [
+        { kind: 'section', section: appSection },
+        { kind: 'section', section: dbSection },
+      ];
+    },
+
+    'protocols-table': () => {
+      const rows = protocolsScan.scanProtocols(ctx.projectPath, { lang: ctx.lang });
+      if (!rows || rows.length === 0) {
+        pushWarning(ctx, 'protocols-table', 'no protocols detected in project');
+        return null;
+      }
+      const headers = ctx.lang === 'en'
+        ? ['Source', 'Target', 'Protocol', 'Format']
+        : ['Компонент-источник', 'Компонент-приёмник', 'Протокол', 'Формат данных'];
+      return {
+        type: 'table',
+        caption: ctx.lang === 'en' ? 'Application protocols and data formats' : 'Протоколы и форматы данных приложения',
+        headers,
+        rows: rows.map((r) => [r.source, r.target, r.protocol, r.format]),
+      };
+    },
+
+    'tech-scaling': (attrs) => {
+      const headingLevel = Number(attrs.headingLevel) > 0 ? Number(attrs.headingLevel) : 2;
+      const scan = ctx.scalingScan || scalingScan.scanScaling(ctx.projectPath);
+      ctx.scalingScan = scan;
+      const sections = techScalingExpander.buildTechScaling(scan, {
+        lang: ctx.lang,
+        headingLevel,
+      });
+      return sections.map((s) => ({ kind: 'section', section: s }));
     },
 
     'roles-section': (attrs) => {

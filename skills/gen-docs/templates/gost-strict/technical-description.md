@@ -24,30 +24,13 @@ MUST include:
 
 ## Перечень используемых технологий
 
-<!-- AGENT: Create a COMPLETE technology stack table.
-Source: doc-researcher SYSTEM OVERVIEW + package.json/requirements.txt/go.mod/Cargo.toml analysis.
-MUST include:
-1. Programming languages (with versions)
-2. Frameworks and libraries (with versions)
-3. Databases and storage systems
-4. Message brokers and caches
-5. Web servers and reverse proxies
-6. Container and orchestration tools
-7. Build tools and package managers
-8. Testing frameworks
-9. CI/CD tools (if detectable)
+<!-- AGENT: Строки таблицы ниже заполняются expander-ом tech-stack-table
+на основании сканера stack-detector: язык/рантайм, фреймворк, движок БД,
+порт и контейнеризация определяются автоматически из package.json /
+composer.json / requirements.txt / go.mod / docker-compose. При
+необходимости дополняйте таблицу вручную в разделе ниже. -->
 
-Group by category. Include version numbers where known. -->
-
-| Категория | Технология | Версия | Назначение |
-|-----------|-----------|--------|------------|
-| Язык программирования | — | — | Серверная логика |
-| Фреймворк | — | — | Веб-фреймворк |
-| База данных | — | — | Хранение данных |
-| Контейнеризация | Docker | — | Развёртывание |
-| Оркестрация | Docker Compose | — | Управление контейнерами |
-
-<!-- AGENT: Fill all rows from actual project analysis -->
+<!-- GEN:tech-stack-table -->
 
 # Архитектура системы
 
@@ -69,29 +52,7 @@ Group by category. Include version numbers where known. -->
 Source: doc-researcher ARCHITECTURE + docker-compose.yml analysis.
 Create a separate subsection for each component. -->
 
-### Сервер приложения
-
-<!-- AGENT: Describe the main application server -->
-
-**Технология:** —
-
-**Назначение:** обработка бизнес-логики, предоставление REST API, обслуживание клиентских запросов.
-
-**Порты:** —
-
-**Зависимости:** база данных.
-
-### База данных
-
-<!-- AGENT: Describe the database server -->
-
-**Технология:** —
-
-**Назначение:** хранение данных системы, обеспечение целостности и консистентности данных.
-
-**Порты:** —
-
-<!-- AGENT: Continue with additional subsections for each service discovered -->
+<!-- GEN:tech-components -->
 
 ## Взаимодействие компонентов
 
@@ -110,10 +71,7 @@ MUST include:
 
 ### Протоколы и форматы данных
 
-| Компонент-источник | Компонент-приёмник | Протокол | Формат данных |
-|--------------------|--------------------|----------|---------------|
-
-<!-- AGENT: Fill based on actual architecture analysis -->
+<!-- GEN:protocols-table -->
 
 # Структура данных
 
@@ -209,85 +167,19 @@ Example format:
 
 # Безопасность
 
-<!-- AGENT: Comprehensive security description.
-Source: doc-researcher AUTH + code analysis.
-MUST include ALL of the following subsections: -->
+<!-- AGENT: Субразделы ниже заполняются expander-ом tech-security на основе
+сканера зависимостей/конфигурации. Подтверждайте содержимое вручную при
+аудите; если сканер ошибся — расширьте security-scan.js новыми матчерами
+или перепишите конкретный подраздел. -->
 
-## Аутентификация
-
-<!-- AGENT: Describe the authentication mechanism:
-1. Authentication method (JWT, session, OAuth2, SAML, etc.)
-2. Token/session lifecycle (creation, refresh, expiration)
-3. Password requirements and hashing algorithm
-4. Multi-factor authentication (if applicable)
-5. Brute-force protection (rate limiting, account lockout)
-Source: doc-researcher AUTH -->
-
-## Авторизация
-
-<!-- AGENT: Describe the authorization model:
-1. Authorization approach (RBAC, ABAC, ACL)
-2. Role hierarchy and permissions matrix
-3. Resource-level access control
-4. How authorization is enforced (middleware, guards, decorators)
-Source: doc-researcher AUTH -->
-
-## Защита данных
-
-<!-- AGENT: Describe data protection measures:
-1. Data encryption at rest (database, file storage)
-2. Data encryption in transit (TLS/SSL)
-3. Sensitive data handling (PII, passwords, tokens)
-4. Data sanitization and validation
-Source: doc-researcher AUTH + code analysis -->
-
-## Сетевая безопасность
-
-<!-- AGENT: Describe network security measures:
-1. CORS policy
-2. CSP (Content Security Policy) headers
-3. Rate limiting configuration
-4. Firewall rules or network policies
-5. HTTPS enforcement
-Source: doc-researcher code analysis of middleware/security configuration -->
-
-## Журналирование событий безопасности
-
-<!-- AGENT: Describe security event logging:
-1. What security events are logged (login, logout, failed attempts, permission changes)
-2. Log format and storage
-3. Log retention policy
-4. Audit trail capabilities -->
+<!-- GEN:tech-security headingLevel="2" -->
 
 # Масштабирование и отказоустойчивость
 
-<!-- AGENT: Describe scalability and reliability characteristics.
-Source: doc-researcher ARCHITECTURE.
-MUST include: -->
+<!-- AGENT: Подразделы ниже заполняются expander-ом tech-scaling из
+результатов сканирования docker-compose / k8s / pm2 / очередей / кэша /
+reverse-proxy. Если сканер не нашёл очевидных сигналов — эмитятся
+нейтральные плейсхолдеры. -->
 
-## Горизонтальное масштабирование
-
-<!-- AGENT: Describe how the system can be scaled horizontally:
-1. Which components can be replicated
-2. Stateless vs stateful services
-3. Session management in multi-instance setup
-4. Load balancing strategy
-5. Database scaling (read replicas, sharding)
-If the system is not designed for horizontal scaling, state this explicitly and describe what would need to change. -->
-
-## Вертикальное масштабирование
-
-<!-- AGENT: Describe vertical scaling options:
-1. Which resources can be increased (CPU, RAM, disk)
-2. Configuration changes needed for larger resources
-3. Performance bottleneck identification -->
-
-## Отказоустойчивость
-
-<!-- AGENT: Describe fault tolerance measures:
-1. Single points of failure and mitigation
-2. Health checks and auto-restart (Docker restart policies)
-3. Data replication strategy
-4. Backup and recovery (reference admin guide)
-5. Graceful degradation under load -->
+<!-- GEN:tech-scaling headingLevel="2" -->
 
