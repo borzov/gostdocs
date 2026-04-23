@@ -12,7 +12,32 @@ Rework from a linear 4-phase flow to a 7-phase pipeline with structured Doc-Mode
 intermediates, stack-agnostic adapters, and blocking precheck. See `ROADMAP.md`
 for the full phased plan and acceptance criteria.
 
-### Phase 6A — Doc-Model + Markdown renderer + pre-pandoc linter (this release)
+### Phase 6B — Mermaid adapter, security section, journey renderer (this release)
+
+#### Added
+- `scripts/adapters/mermaid.js` — renders Mermaid diagrams via
+  `mermaid-cli` (`mmdc`) subprocess when available; when missing or on
+  failure, returns a Doc-Model code element with `lang: "mermaid"` so
+  the plaintext diagram still appears in the document and a warning is
+  recorded. Availability check is cached per process.
+- `scripts/lib/security-recommendations.js` — builds a Doc-Model
+  section with role-specific security recommendations. Four document
+  types: user-guide (passwords / phishing / public Wi-Fi), admin-guide
+  (MFA / least privilege / audit log / key rotation), operator-guide
+  (env isolation / backups / incident response), technical-description
+  (TLS / encryption at rest / RBAC / input validation / audit log).
+  Russian and English content.
+- `scripts/lib/journey-render.js` — converts a validated journey into
+  a Doc-Model section with numbered "Шаг N — description" paragraphs
+  interleaved with figure elements for steps marked
+  `screenshot: true`. `renderJourneysSection` wraps all journeys in a
+  parent "Примеры использования / Usage scenarios" section.
+- 28 new jest tests covering mermaid rendering happy path + fallback
+  + cache, all four security doc types in ru/en, journey rendering
+  with capture matching and step-description fallbacks. 417 tests
+  total, all green.
+
+### Phase 6A — Doc-Model + Markdown renderer + pre-pandoc linter (earlier in this release)
 
 #### Added
 - `scripts/lib/doc-model.js` — structured intermediate document

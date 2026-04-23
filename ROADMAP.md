@@ -165,16 +165,20 @@ Maps to user categories: 3.1, 3.4, 3.5, 9.1, 9.3, 9.5.
 - [x] Pre-pandoc lint — placeholders, image refs, H2 word counts,
       manifest coverage in `scripts/lib/md-lint.js`
 
-### Phase 6B — generator integration (next)
+### Phase 6B — domain renderers (done)
+
+- [x] Mermaid → PNG/SVG via `mermaid-cli` with graceful code-block fallback
+- [x] Security recommendations per doc role (user / admin / operator /
+      tech-description) in ru/en
+- [x] `journeys[]` renderer — numbered "Шаг N — description" sections
+      with interleaved figures
+
+### Phase 6C — generator orchestrator (next)
 
 - [ ] Template rework: machine-readable checklist (breadcrumb, heading,
       menu, top buttons, filters, columns, row actions, bulk actions,
       pagination, empty state, modals) declared per document section
 - [ ] Checklist fulfilment counter feeding validator
-- [ ] `journeys[]` renderer — numbered "шаг → рисунок" sections
-- [ ] Mermaid → PNG/SVG via `mermaid-cli` with graceful fallback
-- [ ] Security recommendations per doc role (user vs admin vs operator vs
-      tech-description), inserted as a dedicated section
 - [ ] `generate.js` orchestrator: research → doc-model → markdown → lint →
       pandoc call → postprocess
 
