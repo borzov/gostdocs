@@ -58,20 +58,37 @@ docs/generated/_inspection/admin/desktop/ru/home.json
 
 ### Subagent contract (vision pass)
 
-After capture, for each manifest entry the orchestrator either:
+After capture, `scripts/ui-inspector.js` iterates every entry in
+`docs/screenshots/manifest.json`. Behaviour depends on `vision.provider`:
 
-1. **Claude path (default)** — invokes the `general-purpose` Agent with the
-   prompt built by `scripts/lib/inspection-prompt.js`. The agent reads the
-   PNG via the Read tool and returns a JSON object matching
-   `scripts/lib/inspection-schema.js`.
-2. **OpenAI path** — when `vision.provider=openai` and `OPENAI_API_KEY` is
-   set, the same prompt is POSTed to the gpt-4o chat API with the image
-   as a base64 `image_url` part. The response body is parsed by
-   `inspection-schema.extractJson` (tolerates fenced / wrapped output).
+1. **Claude path (default)** — the script writes a job queue to
+   `docs/generated/_inspection/_pending.jsonl`, one row per capture with
+   `{ capture, png_path, target_json, prompt }`. The SKILL orchestrator
+   iterates the queue and dispatches each row via the `Agent` tool, with
+   the agent reading the PNG via the Read tool and writing the result to
+   `target_json` using the shape from `inspection-schema.js`.
+2. **OpenAI path** — the script calls `adapters/vision/openai.js` directly
+   for every row, which POSTs to `https://api.openai.com/v1/chat/completions`
+   with the image as a base64 `image_url` content part. Requires
+   `OPENAI_API_KEY` in the environment (the script never echoes it).
 
 Results are persisted via `scripts/lib/inspection-store.js`:
 `write(projectPath, captureFile, data)`, `listAll(projectPath)` for
 Phase 7 reports.
+
+Flip provider at run-time with `--vision-provider claude|openai`; the
+choice is only written to `meta.yaml` on the next interactive save.
+
+### Setting up OpenAI vision access
+
+When the user selects `--vision-provider openai`, the orchestrator should:
+
+1. Check `OPENAI_API_KEY` in environment. If unset, prompt for the key and
+   instruct the user to `export OPENAI_API_KEY=sk-...` in their shell OR
+   pass it via a one-off `OPENAI_API_KEY=sk-... npm run ui-inspector`.
+2. Never write the key to `meta.yaml`. Never echo it to logs.
+3. On HTTP errors, surface the HTTP status but NOT the request body
+   (OpenAI echoes the key in some 4xx responses).
 
 ### Red-flag detection
 
