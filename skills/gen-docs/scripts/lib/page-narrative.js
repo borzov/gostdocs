@@ -1,5 +1,7 @@
 'use strict';
 
+const languageDetector = require('./language-detector');
+
 /**
  * Build a short Russian (or English) narrative paragraph from a UI inspection
  * JSON record.
@@ -161,17 +163,39 @@ function buildSentences(inspection, lang) {
   return sentences;
 }
 
+function proseMatchesTargetLanguage(text, target) {
+  return languageDetector.matchesTargetLanguage(text, target);
+}
+
 /**
  * @param {Record<string, any> | null | undefined} inspection
  * @param {string} [lang]
+ * @param {{ warnings?: Array<{ scope: string, message: string }>, file?: string }} [opts]
  * @returns {string | null}
  */
-function buildPageNarrative(inspection, lang) {
+function buildPageNarrative(inspection, lang, opts = {}) {
   if (!inspection || typeof inspection !== 'object') return null;
   const lng = selectLang(lang);
   const t = STRINGS[lng];
+  const warnings = Array.isArray(opts.warnings) ? opts.warnings : null;
+  const file = opts.file || (inspection && inspection.file) || '';
 
-  const notes = nonEmptyString(inspection.component_kind_notes);
+  const rawNotes = nonEmptyString(inspection.component_kind_notes);
+  // Drop notes that are clearly in the wrong language — the vision agent
+  // occasionally returns English prose for Russian-target documents even
+  // though the prompt forbids it. Without this filter the English spine
+  // leaks into the narrative and readers see sentences like "Public
+  // landing page with hero banner" in a GOST руководство.
+  let notes = rawNotes;
+  if (notes && !proseMatchesTargetLanguage(notes, lng)) {
+    if (warnings) {
+      warnings.push({
+        scope: 'page-narrative',
+        message: `component_kind_notes dropped — language mismatch in ${file || '(inspection)'}`,
+      });
+    }
+    notes = null;
+  }
   const structured = buildSentences(inspection, lng);
 
   // 1. Vision-agent prose wins when present, plus we still append structured

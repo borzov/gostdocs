@@ -369,7 +369,10 @@ function buildExpanders(ctx) {
         if (!inspection) {
           pushWarning(ctx, 'page-description', `missing inspection JSON for capture: ${capture.file}`);
         }
-        const narrative = pageNarrative.buildPageNarrative(inspection || {}, ctx.lang);
+        const narrative = pageNarrative.buildPageNarrative(inspection || {}, ctx.lang, {
+          warnings: ctx.warnings,
+          file: capture.file,
+        });
         return buildPageDescriptionElement(capture, inspection || {}, {
           level: headingLevel,
           narrative,

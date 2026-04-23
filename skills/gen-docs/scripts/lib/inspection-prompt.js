@@ -20,12 +20,20 @@ function baseInstruction(lang) {
       'You are a UI inspector. Analyse the screenshot and return a SINGLE JSON object describing the visible interface.',
       'Do not include any prose outside the JSON. No code fences unless unavoidable.',
       'If a field is not visible or not applicable, use null or an empty array.',
+      '',
+      'LANGUAGE DISCIPLINE — all string values (title, breadcrumb entries, top_buttons[].label, filters[].label, filters[].options, table.columns[].header, row_actions, bulk_actions, modals_visible, component_kind_notes) MUST be in English. If the UI shows text in another language, transliterate or describe it in English. Borrowed acronyms (API, UI, CRUD) are acceptable.',
+      'WRONG: "component_kind_notes": "Главная страница со списком мероприятий"',
+      'RIGHT: "component_kind_notes": "Public landing with event cards"',
     ];
   }
   return [
     'Ты инспектор пользовательских интерфейсов. Проанализируй скриншот и верни ОДИН JSON-объект, описывающий видимый интерфейс.',
     'Никакого текста вне JSON. Фенсы ```json``` допустимы, но только если иначе нельзя.',
     'Если поле не видно или неприменимо, используй null или пустой массив.',
+    '',
+    'ЯЗЫКОВАЯ ДИСЦИПЛИНА — все строковые значения (title, элементы breadcrumb, top_buttons[].label, filters[].label, filters[].options, table.columns[].header, row_actions, bulk_actions, modals_visible, component_kind_notes) ДОЛЖНЫ быть ТОЛЬКО на русском. Если на экране надпись на другом языке — транслитерируй или опиши её по-русски. Общепринятые англоязычные аббревиатуры (API, UI, CRUD, CTA, JWT) допустимы ТОЛЬКО внутри скобок или как имена собственные.',
+    'НЕПРАВИЛЬНО: "component_kind_notes": "Public landing page with hero banner and CTA buttons"',
+    'ПРАВИЛЬНО:   "component_kind_notes": "Публичная главная страница с баннером-героем и кнопками призыва к действию (CTA)"',
   ];
 }
 

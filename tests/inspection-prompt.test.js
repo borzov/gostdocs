@@ -19,6 +19,23 @@ describe('buildPrompt', () => {
     expect(p).toMatch(/гость/);
     expect(p).not.toMatch(/авторизован как/);
   });
+
+  test('ru prompt carries an anti-English language-discipline clause', () => {
+    const p = buildPrompt({ path: '/', role: 'guest' }, { lang: 'ru' });
+    expect(p).toMatch(/ЯЗЫКОВАЯ ДИСЦИПЛИНА/);
+    expect(p).toMatch(/ТОЛЬКО на русском/);
+    expect(p).toMatch(/НЕПРАВИЛЬНО:/);
+    expect(p).toMatch(/ПРАВИЛЬНО:/);
+    expect(p).toMatch(/Public landing page/);
+  });
+
+  test('en prompt carries an English-only discipline clause', () => {
+    const p = buildPrompt({ path: '/', role: 'guest' }, { lang: 'en' });
+    expect(p).toMatch(/LANGUAGE DISCIPLINE/);
+    expect(p).toMatch(/MUST be in English/);
+    expect(p).toMatch(/WRONG:/);
+    expect(p).toMatch(/RIGHT:/);
+  });
 });
 
 describe('componentExtras', () => {

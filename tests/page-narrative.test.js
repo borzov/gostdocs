@@ -100,6 +100,47 @@ describe('buildPageNarrative — ru (default)', () => {
   });
 });
 
+describe('buildPageNarrative — language sanitisation', () => {
+  test('drops component_kind_notes when it is English prose in RU mode', () => {
+    const warnings = [];
+    const out = buildPageNarrative({
+      title: 'Главная',
+      component_kind_notes: 'Public landing page with hero banner, CTA buttons and info blocks below.',
+      top_buttons: [{ label: 'Вход' }, { label: 'Регистрация' }],
+    }, 'ru', { warnings, file: 'guest/desktop/home.png' });
+    // English spine must not survive.
+    expect(out).not.toMatch(/Public landing/i);
+    expect(out).not.toMatch(/hero banner/i);
+    // Structured RU sentences do survive.
+    expect(out).toContain('кнопки «Вход» и «Регистрация»');
+    // Warning was recorded on drop.
+    expect(warnings.some((w) => /language mismatch/i.test(w.message))).toBe(true);
+  });
+
+  test('keeps RU notes untouched and does not emit a warning', () => {
+    const warnings = [];
+    const out = buildPageNarrative({
+      title: 'Главная',
+      component_kind_notes: 'Публичная главная страница с баннером-героем и блоками информации.',
+      top_buttons: [{ label: 'Вход' }],
+    }, 'ru', { warnings });
+    expect(out).toContain('Публичная главная страница');
+    expect(warnings).toHaveLength(0);
+  });
+
+  test('drops RU notes when lang=en and records a warning', () => {
+    const warnings = [];
+    const out = buildPageNarrative({
+      title: 'Home',
+      component_kind_notes: 'Публичная главная страница с баннером-героем и блоками информации.',
+      top_buttons: [{ label: 'Sign in' }],
+    }, 'en', { warnings, file: 'x.png' });
+    expect(out).not.toMatch(/Публичная/);
+    expect(out).toContain('Sign in');
+    expect(warnings.some((w) => /language mismatch/i.test(w.message))).toBe(true);
+  });
+});
+
 describe('buildPageNarrative — en', () => {
   test('emits English text when lang === "en"', () => {
     const out = buildPageNarrative({

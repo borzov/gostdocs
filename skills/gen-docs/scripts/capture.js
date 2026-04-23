@@ -37,6 +37,7 @@ const interactions = require('./lib/interactions');
 const listScrape = require('./lib/list-scrape');
 const idResolver = require('./adapters/id-resolver');
 const authAdapter = require('./adapters/auth');
+const errorPageDetector = require('./lib/error-page-detector');
 
 const BROWSERS_PATH = path.resolve(__dirname, '..', '.playwright-cache');
 process.env.PLAYWRIGHT_BROWSERS_PATH = process.env.PLAYWRIGHT_BROWSERS_PATH || BROWSERS_PATH;
@@ -138,7 +139,23 @@ async function probeAccess(browser, metaData, plan) {
   return access;
 }
 
-async function resolveTupleUrl(tuple, metaData, { page, fetchImpl, authHeaders }) {
+async function probeUrlOk(url, fetchImpl, authHeaders) {
+  if (!fetchImpl || !url) return { ok: null, status: null };
+  // HEAD first (cheap), fall back to GET — many stacks return 405 on HEAD.
+  for (const method of ['HEAD', 'GET']) {
+    try {
+      const res = await fetchImpl(url, { method, headers: authHeaders || {}, redirect: 'follow' });
+      const status = typeof res.status === 'number' ? res.status : null;
+      if (status === 405 && method === 'HEAD') continue;
+      return { ok: status !== null && status >= 200 && status < 400, status };
+    } catch {
+      /* try next method */
+    }
+  }
+  return { ok: null, status: null };
+}
+
+async function resolveTupleUrl(tuple, metaData, { page, fetchImpl, authHeaders, onWarning }) {
   if (!tuple.path) return null;
   if (!routes.isParametrized(tuple.path)) {
     return new URL(tuple.path, metaData.app.url).href;
@@ -192,11 +209,34 @@ async function resolveTupleUrl(tuple, metaData, { page, fetchImpl, authHeaders }
     }
   }
 
+  let finalUrl;
   try {
-    return new URL(routes.substitute(tuple.path, values), metaData.app.url).href;
+    finalUrl = new URL(routes.substitute(tuple.path, values), metaData.app.url).href;
   } catch {
     return null;
   }
+
+  // Probe the resolved URL when the caller supplied a fetch. The capture
+  // phase will catch a 4xx / 5xx via error-page-detector anyway, but
+  // this surfaces the root cause ("parametrize value doesn't resolve")
+  // BEFORE the browser actually opens the page, so the REPORT tells the
+  // user "update meta.yaml seed id" instead of the less actionable
+  // "screenshot shows error page".
+  if (fetchImpl && typeof onWarning === 'function') {
+    const probe = await probeUrlOk(finalUrl, fetchImpl, authHeaders);
+    if (probe.ok === false) {
+      const explicitUsed = Object.keys(tuple.parametrize || {}).length > 0;
+      const hint = explicitUsed
+        ? `update meta.yaml pages[id=${tuple.pageId}].parametrize or add precheck.min_entities for the entity`
+        : `no automatic id could be resolved — add meta.yaml pages[id=${tuple.pageId}].parametrize or seed the database`;
+      onWarning({
+        scope: `id-resolver:${tuple.pageId}`,
+        message: `parametrized URL probe returned ${probe.status} for ${finalUrl}; ${hint}`,
+      });
+    }
+  }
+
+  return finalUrl;
 }
 
 async function captureGroup({ browser, metaData, tuples, authCtxCache, manifest, outRoot, fetchImpl }) {
@@ -256,16 +296,48 @@ async function captureGroup({ browser, metaData, tuples, authCtxCache, manifest,
 
   for (const tuple of tuples) {
     try {
-      const url = await resolveTupleUrl(tuple, metaData, { page, fetchImpl, authHeaders });
+      const url = await resolveTupleUrl(tuple, metaData, {
+        page,
+        fetchImpl,
+        authHeaders,
+        onWarning: (w) => manifest.warnings.push(w),
+      });
       if (!url) {
         manifest.errors.push({ role: roleName, capture_id: tuple.pageId, stage: 'resolve', message: `could not resolve ${tuple.path}` });
         continue;
       }
 
       const finalUrl = interactions.buildUrlWithQuery(url, tuple.query_params);
-      await page.goto(finalUrl, { waitUntil: 'networkidle' });
+      const navResponse = await page.goto(finalUrl, { waitUntil: 'networkidle' });
       await dismiss.applyDismiss(page, [...globalDismiss, ...((tuple.actions || []).flatMap((a) => a.dismiss || []))]);
       await page.waitForTimeout(waitMs);
+
+      // After navigation has settled, check whether the browser actually
+      // landed on the expected page. If the backend returned 4xx/5xx, the
+      // URL redirected to an error route, or the title screams "Not
+      // found / Ошибка / Forbidden", we must not take a screenshot —
+      // the guide would otherwise render the error page as the product
+      // screen.
+      let pageTitle = '';
+      try { pageTitle = await page.title(); } catch { /* title is optional */ }
+      const errReport = errorPageDetector.detectErrorPage({
+        response: navResponse,
+        url: page.url ? page.url() : finalUrl,
+        title: pageTitle,
+        role: roleName,
+      });
+      if (errReport) {
+        manifest.errors.push({
+          role: roleName,
+          capture_id: tuple.pageId,
+          stage: 'error-page',
+          message: errReport.reason,
+          status: errReport.status,
+          url: errReport.url,
+          title: errReport.title,
+        });
+        continue;
+      }
 
       // Per-page interactions (FAQ accordion expansion, search field fill,
       // filter button click) run BEFORE actions so the action-driven multi-
