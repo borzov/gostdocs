@@ -1,0 +1,88 @@
+const dm = require('../skills/gen-docs/scripts/lib/doc-model');
+const render = require('../skills/gen-docs/scripts/lib/doc-model-md');
+
+function docWithSections() {
+  const doc = dm.newDocument({ title: 'Руководство', lang: 'ru-RU' });
+  const intro = dm.addSection(doc, dm.newSection({ heading: 'Введение', level: 1 }));
+  dm.addElement(intro, { type: 'paragraph', text: 'Область применения.' });
+  dm.addElement(intro, { type: 'figure', caption: 'Главная страница', file: 'guest/desktop/home.png' });
+  const ops = dm.addSection(doc, dm.newSection({ heading: 'Описание операций', level: 1 }));
+  dm.addElement(ops, { type: 'figure', caption: 'Список', file: 'admin/desktop/list.png' });
+  dm.addElement(ops, { type: 'figure', caption: 'Карточка', file: 'admin/desktop/card.png' });
+  dm.addElement(ops, {
+    type: 'table', caption: 'Параметры',
+    headers: ['Параметр', 'Значение'], rows: [['a', '1'], ['b', '2']],
+  });
+  return doc;
+}
+
+describe('render', () => {
+  test('emits YAML frontmatter', () => {
+    const md = render.render(dm.validate(docWithSections()));
+    expect(md).toMatch(/^---\ntitle: Руководство\nlang: ru-RU\n---/);
+  });
+
+  test('numbers figures per top-level section', () => {
+    const md = render.render(dm.validate(docWithSections()));
+    expect(md).toMatch(/Рисунок 1\.1 — Главная страница/);
+    expect(md).toMatch(/Рисунок 2\.1 — Список/);
+    expect(md).toMatch(/Рисунок 2\.2 — Карточка/);
+  });
+
+  test('numbers tables per top-level section', () => {
+    const md = render.render(dm.validate(docWithSections()));
+    expect(md).toMatch(/: Таблица 2\.1 — Параметры/);
+    expect(md).toMatch(/\| Параметр \| Значение \|/);
+  });
+
+  test('renders admonitions with localised header', () => {
+    const doc = dm.newDocument({ title: 'T' });
+    const s = dm.addSection(doc, dm.newSection({ heading: 'H', level: 1 }));
+    dm.addElement(s, { type: 'admonition', kind: 'warning', text: 'Важно.' });
+    const md = render.render(dm.validate(doc));
+    expect(md).toMatch(/> \*\*Внимание\.\*\* Важно\./);
+  });
+
+  test('renders checklist-result', () => {
+    const doc = dm.newDocument({ title: 'T' });
+    const s = dm.addSection(doc, dm.newSection({ heading: 'H', level: 1 }));
+    dm.addElement(s, {
+      type: 'checklist-result',
+      title: 'Проверка',
+      items: [
+        { label: 'есть', filled: true, source: null },
+        { label: 'нет',  filled: false, source: null },
+      ],
+    });
+    const md = render.render(dm.validate(doc));
+    expect(md).toMatch(/- \[V\] есть/);
+    expect(md).toMatch(/- \[ \] нет/);
+  });
+
+  test('english lang emits english labels', () => {
+    const doc = dm.newDocument({ title: 'Guide', lang: 'en-US' });
+    const s = dm.addSection(doc, dm.newSection({ heading: 'Intro', level: 1 }));
+    dm.addElement(s, { type: 'figure', caption: 'Home', file: 'x.png' });
+    dm.addElement(s, { type: 'admonition', kind: 'note', text: 'Hello.' });
+    const md = render.render(dm.validate(doc));
+    expect(md).toMatch(/Figure 1\.1 — Home/);
+    expect(md).toMatch(/\*\*Note\.\*\*/);
+  });
+
+  test('heading levels respected', () => {
+    const doc = dm.newDocument({ title: 'T' });
+    const s = dm.addSection(doc, dm.newSection({ heading: 'H', level: 1 }));
+    s.children.push(dm.newSection({ heading: 'Sub', level: 2 }));
+    const md = render.render(dm.validate(doc));
+    expect(md).toMatch(/^# H$/m);
+    expect(md).toMatch(/^## Sub$/m);
+  });
+
+  test('no horizontal rules outside frontmatter, no triple-newline runs', () => {
+    const md = render.render(dm.validate(docWithSections()));
+    // Drop the leading frontmatter block (between the first two --- lines).
+    const body = md.replace(/^---\n[\s\S]*?\n---\n/, '');
+    expect(body).not.toMatch(/^---$/m);
+    expect(body).not.toMatch(/\n{3,}/);
+  });
+});

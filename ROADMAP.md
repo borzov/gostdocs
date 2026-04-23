@@ -157,14 +157,26 @@ Acceptance: every PNG has a matching `_inspection/<role>/<file>.json`; false-log
 
 Maps to user categories: 3.1, 3.4, 3.5, 9.1, 9.3, 9.5.
 
-- [ ] Doc-Model schema (sections, elements)
-- [ ] Template rework - machine-readable checklist (breadcrumb, heading, menu, top buttons, filters, columns, row actions, bulk actions, pagination, empty state, modals)
-- [ ] Checklist rendered as completion counter in validator
-- [ ] `journeys[]` renderer - numbered "step -> figure"
-- [ ] Figure numbering `Figure 4.1 - Caption` (section counter, pandoc filter or Doc-Model emitter)
-- [ ] Mermaid -> PNG/SVG via `mermaid-cli`, fallback to plaintext + warning
-- [ ] Security recommendations per doc role (user vs admin vs operator vs tech-description)
-- [ ] Pre-pandoc lint - no leftover `AGENT:`, `TODO`, `FIXME`, `XXX`, all image refs resolve, every manifest file referenced or `excluded`, minimum word count per H2
+### Phase 6A — doc-model + renderer + linter (done)
+
+- [x] Doc-Model schema (sections, elements) in `scripts/lib/doc-model.js`
+- [x] Markdown renderer with per-section figure/table numbering
+      in `scripts/lib/doc-model-md.js`
+- [x] Pre-pandoc lint — placeholders, image refs, H2 word counts,
+      manifest coverage in `scripts/lib/md-lint.js`
+
+### Phase 6B — generator integration (next)
+
+- [ ] Template rework: machine-readable checklist (breadcrumb, heading,
+      menu, top buttons, filters, columns, row actions, bulk actions,
+      pagination, empty state, modals) declared per document section
+- [ ] Checklist fulfilment counter feeding validator
+- [ ] `journeys[]` renderer — numbered "шаг → рисунок" sections
+- [ ] Mermaid → PNG/SVG via `mermaid-cli` with graceful fallback
+- [ ] Security recommendations per doc role (user vs admin vs operator vs
+      tech-description), inserted as a dedicated section
+- [ ] `generate.js` orchestrator: research → doc-model → markdown → lint →
+      pandoc call → postprocess
 
 Acceptance: linter blocks release if placeholders remain; security recommendations scoped to document type.
 

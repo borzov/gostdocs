@@ -12,7 +12,32 @@ Rework from a linear 4-phase flow to a 7-phase pipeline with structured Doc-Mode
 intermediates, stack-agnostic adapters, and blocking precheck. See `ROADMAP.md`
 for the full phased plan and acceptance criteria.
 
-### Phase 5B — Vision provider + inspector CLI (this release)
+### Phase 6A — Doc-Model + Markdown renderer + pre-pandoc linter (this release)
+
+#### Added
+- `scripts/lib/doc-model.js` — structured intermediate document
+  representation. Sections with discriminated-union elements
+  (paragraph, figure, table, admonition, checklist-result, code, raw).
+  Zod-validated. Helpers `newDocument`, `newSection`, `addSection`,
+  `addElement`, `walkSections`, `countElements`, `slugify` (Cyrillic
+  transliteration included).
+- `scripts/lib/doc-model-md.js` — GOST-compliant Markdown renderer:
+  YAML frontmatter, headings without manual numbers (pandoc fills in),
+  figures numbered "Рисунок N.M — Caption" per top-level section
+  (English: "Figure N.M"), tables with pandoc caption syntax, checklist
+  rendering, admonition blockquotes, no horizontal rules / emoji /
+  triple-newline runs. Language selected from `document.lang`.
+- `scripts/lib/md-lint.js` — pre-pandoc linter. Flags stray `AGENT:`,
+  `TODO`, `FIXME`, `XXX`, and `<!--` placeholders (errors); broken image
+  refs (errors); manifest captures not referenced in the document
+  (warnings); H2 sections below minimum word count (warnings).
+  `minWordsPerH2` and `excluded[]` are configurable.
+- 32 new jest tests covering doc-model element validation, walking,
+  slugify, markdown rendering with figure/table numbering per section,
+  admonitions, checklists, English locale, heading levels, and every
+  linter category. 389 tests total, all green.
+
+### Phase 5B — Vision provider + inspector CLI (earlier in this release)
 
 #### Added
 - `scripts/adapters/vision/openai.js` — gpt-4o vision adapter. POSTs a
