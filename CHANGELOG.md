@@ -12,7 +12,27 @@ Rework from a linear 4-phase flow to a 7-phase pipeline with structured Doc-Mode
 intermediates, stack-agnostic adapters, and blocking precheck. See `ROADMAP.md`
 for the full phased plan and acceptance criteria.
 
-### Phase 6B — Mermaid adapter, security section, journey renderer (this release)
+### Phase 7A — REPORT.md builder + duplicate detection (this release)
+
+#### Added
+- `scripts/lib/file-hash.js` — SHA-256 file hashing with
+  `sha256Buffer / sha256File / detectDuplicates`. Cheap but exact:
+  identical-byte screenshots (e.g. every auth-required route silently
+  re-shooting the login page) are grouped by hash. Residual "similar
+  but not identical" cases are caught by the Phase 5 `is_login_form`
+  flag.
+- `scripts/lib/report.js` — pure `buildReport` that assembles a
+  Markdown summary from manifest, coverage, inspections, duplicates,
+  md-lint results, and output documents. Sections: overview,
+  documents, coverage per role, blockers, gaps/warnings, suspicious
+  shots (authed roles landing on login), duplicate groups,
+  AI-generated markdown in sources, markdown-lint errors. Russian and
+  English locales.
+- 22 new jest tests covering file-hash dedupe + missing-file handling,
+  every REPORT section (ru/en), blockers / warnings / suspicious /
+  duplicates / md-lint integration. 434 tests total, all green.
+
+### Phase 6B — Mermaid adapter, security section, journey renderer (earlier in this release)
 
 #### Added
 - `scripts/adapters/mermaid.js` — renders Mermaid diagrams via

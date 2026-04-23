@@ -188,9 +188,23 @@ Acceptance: linter blocks release if placeholders remain; security recommendatio
 
 Maps to user categories: 6.1, 6.2, 8.4, 9.4.
 
-- [ ] `scripts/validators/docx.py` - python-docx + OpenXML: margins, fonts, spacing, title page, stamp (strict)
-- [ ] pHash visual dedupe + login-form similarity -> warning list
-- [ ] `REPORT.md` - documents sizes + pages, routes coverage X/Y, roles coverage, warnings, blocker list with remediation
+### Phase 7A — REPORT.md + dedupe (done)
+
+- [x] SHA-256 dedup detection in `scripts/lib/file-hash.js`
+- [x] `REPORT.md` builder in `scripts/lib/report.js` with overview,
+      per-role coverage, blockers, warnings, suspicious shots,
+      duplicates, AI-source flags, and md-lint results
+- [x] `is_login_form` flag on authenticated roles surfaces in the
+      suspicious-shots section
+
+### Phase 7B — strict-GOST validators (next)
+
+- [ ] `scripts/validators/docx.py` — python-docx + OpenXML: margins,
+      fonts, spacing, title page, stamp (strict)
+- [ ] `scripts/report.js` CLI entry that loads all artifacts from disk
+      and writes the final REPORT.md
+- [ ] Perceptual hash or visual similarity for near-duplicate detection
+      beyond byte-exact SHA-256
 
 Acceptance: strict mode blocks publish if DOCX deviates from GOST; REPORT.md lists every gap the user needs to act on.
 
