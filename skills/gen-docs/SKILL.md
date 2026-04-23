@@ -40,6 +40,74 @@ Playwright or Chromium.
 - `scripts/bootstrap.js [--force|--check]` — install/verify sandbox
 - `scripts/precheck.js --config <meta.yaml>` — run precheck phase
 
+## Research and specs (Phase 4)
+
+### Subagent contract
+
+Every research subagent (doc-researcher, spec-reader, schema-adapter,
+openapi-adapter, role-discovery, ...) MUST:
+
+1. Write prose output to `docs/generated/_research/<agent>.md` (or several
+   topic files — one per logical section).
+2. Write a machine-readable `docs/generated/_research/<agent>.summary.json`
+   matching the `research-result` schema:
+   ```json
+   {
+     "version": "1.0",
+     "agent": "doc-researcher",
+     "generated_at": "2026-04-23T12:00:00Z",
+     "coverage": [
+       { "section": "ROUTES", "found": true, "source": "src/router.ts", "size": 500, "missing": [] },
+       { "section": "NFR", "found": false, "source": null, "size": 0, "missing": ["hardware", "load"] }
+     ],
+     "files": [{ "path": "docs/generated/_research/routes.md", "section": "ROUTES", "bytes": 500 }],
+     "warnings": []
+   }
+   ```
+3. Return only a short summary to stdout (title + coverage one-liner). The
+   orchestrator reads the full content from disk, not from the agent
+   message — this keeps the parent context window small.
+
+### Orchestrator
+
+`scripts/research.js` aggregates every `*.summary.json`, applies the NFR
+policy (strict blocks, lite warns), runs the schema adapter and OpenAPI
+adapter when their agents did not contribute, and scans `_research/*.md`
+for AI-artifact markers. Result: `docs/generated/_research/coverage.json`.
+
+### Schema adapter
+
+`scripts/adapters/schema/index.js` detects Prisma / Alembic / Django /
+Knex / TypeORM / Sequelize markers and dispatches to a framework parser.
+Only Prisma has a native parser in v0.3; other frameworks return a warning
+suggesting `--live-db`, which runs `pg_dump --schema-only` via
+`scripts/adapters/schema/pg-dump.js`. All parsers produce the same
+normalised shape and are rendered by `scripts/lib/schema-model.js`
+`buildMarkdown`.
+
+### OpenAPI / Swagger adapter
+
+`scripts/adapters/openapi.js` loads a local OpenAPI 3.x or Swagger 2.0
+spec (`--openapi <path>`), normalises endpoints, and emits a Markdown
+section grouped by tag. URL fetching is deferred; the orchestrator is
+expected to download a remote spec separately and pass the local path.
+
+### AI-artifact filter
+
+`scripts/lib/ai-artifact-filter.js` flags markdown files whose filename
+matches known auto-generated patterns (TECHNICAL_SPECIFICATION.md,
+ARCHITECTURE_GUIDELINES.md, GENERATED_*.md) or whose content contains
+LLM footers / typical phrasing. Flagged files are not cited by the
+Phase 6 generator.
+
+### NFR policy
+
+`scripts/lib/nfr-policy.js` applies the strict-vs-lite decision to
+aggregated coverage. In strict mode missing NFR sections emit a
+placeholder directive PLUS a validation blocker that stops publication
+until the section is filled in. In lite mode the placeholder is still
+emitted but publication proceeds with a warning.
+
 ## Capture execution (Phase 3B)
 
 `scripts/capture.js` is the v0.3 orchestrator, replacing the legacy monolithic

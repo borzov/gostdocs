@@ -12,7 +12,43 @@ Rework from a linear 4-phase flow to a 7-phase pipeline with structured Doc-Mode
 intermediates, stack-agnostic adapters, and blocking precheck. See `ROADMAP.md`
 for the full phased plan and acceptance criteria.
 
-### Phase 4A — Research policy modules (this release)
+### Phase 4B — Research integration (this release)
+
+#### Added
+- `scripts/lib/schema-model.js` — Zod-validated normalised schema shape
+  (tables, columns, foreign keys, indexes) plus `buildMarkdown` emitter
+  with ru/en locales and GOST-style column+FK+index sections.
+- `scripts/adapters/schema/detect.js` — framework autodetect walking
+  markers for Prisma, Alembic, Django, Knex, TypeORM, Sequelize; reports
+  whether a v0.3 parser is available.
+- `scripts/adapters/schema/prisma.js` — full Prisma schema parser
+  handling models, scalar fields, @id / @unique / @default / @map,
+  @relation-based foreign keys, and @@index / @@unique / @@map block
+  attributes. Manual char-by-char attribute scanner supports nested
+  parens like `@default(autoincrement())`.
+- `scripts/adapters/schema/pg-dump.js` — live-DB extractor that runs
+  `pg_dump --schema-only` via `child_process.spawn` (no shell) and parses
+  CREATE TABLE / ALTER TABLE / CREATE INDEX output into the normalised
+  shape.
+- `scripts/adapters/schema/index.js` — dispatcher: detect -> parser; if
+  parser absent, emits a --live-db hint; `--live-db` overrides detection
+  entirely.
+- `scripts/adapters/openapi.js` — OpenAPI 3.x + Swagger 2.0 loader
+  (local file only) that normalises endpoints into a flat list and
+  emits a Markdown section grouped by tag with parameter and response
+  tables.
+- `scripts/research.js` — Phase 4 orchestrator CLI that reads every
+  `*.summary.json`, aggregates coverage, applies the NFR policy, invokes
+  schema and OpenAPI adapters where no agent contributed, scans
+  `_research/*.md` for AI-artifact markers, and writes `coverage.json`.
+  In strict mode it exits non-zero when NFR blockers are present.
+- 49 new jest tests covering the normalised schema model, framework
+  autodetect, Prisma parser corner cases, pg_dump output parsing,
+  OpenAPI normalisation + Markdown rendering, and the research
+  orchestrator end-to-end with tmp directories. 316 tests total, all
+  green.
+
+### Phase 4A — Research policy modules (earlier in this release)
 
 #### Added
 - `scripts/lib/ai-artifact-filter.js` — detects markdown files produced by

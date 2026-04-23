@@ -112,16 +112,19 @@ Maps to user categories: 4.1, 4.2, 8.1, 8.2, 8.3, 9.2.
       `ARCHITECTURE_GUIDELINES.md`, content with AI markers
       (`scripts/lib/ai-artifact-filter.js`)
 
-### Phase 4B — integration (next)
+### Phase 4B — integration (done)
 
-- [ ] Agents write to `docs/generated/_research/<theme>.md` — stdout returns
-      summary + coverage only
-- [ ] `schema-adapter`: parse migrations (prisma / knex / alembic / django /
-      typeorm / sqlalchemy), `pg_dump --schema-only` fallback via `--live-db`
-- [ ] `openapi-adapter`: fetch + convert to Markdown tables; source of truth
-      for API section of tech description
-- [ ] `research.js` orchestrator that invokes agents, reads summaries,
-      aggregates, applies NFR policy, runs AI-artifact filter
+- [x] Subagent contract documented in SKILL.md: agents write to
+      `docs/generated/_research/<agent>.md` + `<agent>.summary.json`;
+      stdout returns only a short summary
+- [x] `schema-adapter` autodetect + Prisma parser + `pg_dump --schema-only`
+      fallback via `--live-db`. Alembic / Django / Knex / TypeORM / Sequelize
+      are detected but parsers are deferred (warn to use --live-db)
+- [x] `openapi-adapter` loads local OpenAPI 3.x / Swagger 2.0 and emits
+      Markdown tables. URL fetching deferred
+- [x] `scripts/research.js` orchestrator reads summaries, aggregates,
+      applies NFR policy, runs schema + openapi adapters when absent,
+      scans for AI-artifact markers, writes `coverage.json`
 
 Acceptance: strict mode rejects generation if NFR section missing and no placeholder allowed; coverage report reveals gaps before they reach DOCX.
 
