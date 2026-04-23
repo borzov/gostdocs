@@ -13,7 +13,7 @@ describe('buildPageNarrative — ru (default)', () => {
     expect(out).toContain('Изменить'); // top_buttons appended as a "Доступные действия" sentence
   });
 
-  test('assembles a sentence from top_buttons and filters when notes are empty', () => {
+  test('assembles varied sentences from top_buttons and filters when notes are empty', () => {
     const out = buildPageNarrative({
       title: 'Список мероприятий',
       breadcrumb: ['Главная', 'Мероприятия'],
@@ -27,10 +27,38 @@ describe('buildPageNarrative — ru (default)', () => {
       ],
       table: { columns: [{ name: 'Название' }, { name: 'Дата' }], has_pagination: true },
     }, 'ru');
-    expect(out).toContain('Доступные действия: «Создать мероприятие», «Импорт».');
-    expect(out).toContain('Можно отфильтровать список по полям: «Категория», «Статус».');
-    expect(out).toContain('колонки');
-    expect(out).toContain('«Название»');
+    // Plural-aware: "размещены кнопки X и Y" (not "Доступные действия:")
+    expect(out).toContain('размещены кнопки «Создать мероприятие» и «Импорт».');
+    expect(out).toContain('расположены фильтры «Категория» и «Статус».');
+    expect(out).toContain('таблицы со столбцами «Название» и «Дата»');
+    expect(out).toContain('постраничная навигация');
+  });
+
+  test('uses singular phrasing when there is only one button / filter / modal', () => {
+    const out = buildPageNarrative({
+      title: 'Профиль',
+      top_buttons: [{ label: 'Изменить' }],
+      filters: [{ label: 'Дата' }],
+      modals_visible: [{ title: 'Подтверждение' }],
+    }, 'ru');
+    expect(out).toContain('размещена кнопка «Изменить».');
+    expect(out).toContain('расположен фильтр «Дата».');
+    expect(out).toContain('открывается модальное окно «Подтверждение».');
+  });
+
+  test('deduplicates repeated button labels (case-insensitive)', () => {
+    const out = buildPageNarrative({
+      title: 'Главная',
+      top_buttons: [
+        { label: 'Регистрация' },
+        { label: 'Вход' },
+        { label: 'РЕГИСТРАЦИЯ' },
+        { label: 'вход' },
+      ],
+    }, 'ru');
+    // Each label appears exactly once in the rendered narrative.
+    expect((out.match(/«Регистрация»/g) || []).length).toBe(1);
+    expect((out.match(/«Вход»/g) || []).length).toBe(1);
   });
 
   test('mentions modal windows and empty state when present', () => {
@@ -39,8 +67,8 @@ describe('buildPageNarrative — ru (default)', () => {
       modals_visible: [{ title: 'Подтверждение удаления' }],
       is_empty_state: true,
     }, 'ru');
-    expect(out).toContain('пустого состояния');
-    expect(out).toContain('Подтверждение удаления');
+    expect(out).toContain('состоянии «нет данных».');
+    expect(out).toContain('«Подтверждение удаления»');
   });
 
   test('detects a login form and produces a focused single sentence', () => {
@@ -49,6 +77,14 @@ describe('buildPageNarrative — ru (default)', () => {
       is_login_form: true,
     }, 'ru');
     expect(out).toMatch(/форма входа/i);
+  });
+
+  test('uses → as breadcrumb separator (cleaner than slash)', () => {
+    const out = buildPageNarrative({
+      title: 'Раздел',
+      breadcrumb: ['Главная', 'Раздел', 'Подраздел'],
+    }, 'ru');
+    expect(out).toContain('Главная → Раздел → Подраздел');
   });
 
   test('falls back to a generic single-sentence description when nothing is known', () => {

@@ -186,10 +186,10 @@ Provide exact shell commands. -->
 
 ```bash
 # Выполнение миграций
-docker compose exec app {migration_command}
+docker compose exec {service_name} {migration_command}
 
 # Создание начальных данных
-docker compose exec app {seed_command}
+docker compose exec {service_name} {seed_command}
 ```
 
 **Внимание!** После инициализации в системе создаётся учётная запись администратора по умолчанию. Незамедлительно измените пароль при первом входе.
@@ -347,10 +347,10 @@ MUST include:
 docker compose logs -f
 
 # Просмотр журналов конкретного сервиса
-docker compose logs -f app
+docker compose logs -f {service_name}
 
 # Просмотр журналов за последний час
-docker compose logs --since 1h app
+docker compose logs --since 1h {service_name}
 ```
 
 ## Мониторинг состояния
@@ -401,7 +401,7 @@ docker compose down
 docker compose up -d --build
 
 # Выполнение миграций
-docker compose exec app {migration_command}
+docker compose exec {service_name} {migration_command}
 ```
 
 ## Проверка после обновления
@@ -441,9 +441,9 @@ Cover at least these categories:
 
 | № | Проблема | Возможная причина | Диагностика | Решение |
 |---|---------|-------------------|-------------|---------|
-| 1 | Контейнер не запускается | Ошибка конфигурации | `docker compose logs app` | Проверить переменные окружения в `.env` |
-| 2 | Ошибка подключения к БД | Некорректные параметры подключения | `docker compose exec app ping db` | Проверить `DB_HOST`, `DB_PORT`, `DB_PASSWORD` |
-| 3 | Ошибка 502 Bad Gateway | Приложение не отвечает | `docker compose ps` | Перезапустить контейнер: `docker compose restart app` |
+| 1 | Контейнер не запускается | Ошибка конфигурации | `docker compose logs {service_name}` | Проверить переменные окружения в `.env` |
+| 2 | Ошибка подключения к БД | Некорректные параметры подключения | `docker compose exec {service_name} ping {db_host}` | Проверить `DB_HOST`, `DB_PORT`, `DB_PASSWORD` |
+| 3 | Ошибка 502 Bad Gateway | Приложение не отвечает | `docker compose ps` | Перезапустить контейнер: `docker compose restart {service_name}` |
 | 4 | Медленная работа | Нехватка ресурсов | `docker stats` | Увеличить ресурсы сервера или оптимизировать конфигурацию |
 | 5 | Нет свободного места | Переполнение диска | `df -h` | Очистить старые журналы и резервные копии |
 

@@ -26,6 +26,8 @@
 
 const TOKEN_REGEX = /(?<!\$)\{([a-z][a-z0-9_]*)\}/g;
 const FENCE_REGEX = /^\s*(`{3,}|~{3,})/;
+const HTML_COMMENT_OPEN = /<!--/;
+const HTML_COMMENT_CLOSE = /-->/;
 
 /**
  * @param {string} content
@@ -46,13 +48,25 @@ function resolveMustache(content, vars, opts = {}) {
   const out = new Array(lines.length);
   let inFence = false;
   let fenceMarker = null;
+  let inHtmlComment = false;
 
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i];
     const fenceMatch = line.match(FENCE_REGEX);
 
+    // Multi-line HTML comment continuation. The template loader strips such
+    // comments downstream; substituting `{key}` inside them would only emit
+    // spurious "unresolved" warnings for tokens that never reach the
+    // rendered Markdown.
+    if (inHtmlComment) {
+      out[i] = line;
+      if (HTML_COMMENT_CLOSE.test(line)) inHtmlComment = false;
+      continue;
+    }
+
     if (inFence) {
-      if (fenceMatch && fenceMatch[1][0] === fenceMarker[0]
+      if (fenceMatch && fenceMarker
+          && fenceMatch[1][0] === fenceMarker[0]
           && fenceMatch[1].length >= fenceMarker.length) {
         inFence = false;
         fenceMarker = null;
@@ -70,7 +84,27 @@ function resolveMustache(content, vars, opts = {}) {
       continue;
     }
 
-    out[i] = expandLine(line, safeVars, onUnknown, i + 1);
+    // Walk the line piecewise: expand prose, carry HTML-comment ranges
+    // verbatim. A `<!--` without a matching `-->` on the same line opens
+    // multi-line comment mode for subsequent iterations.
+    let pieces = '';
+    let pos = 0;
+    let openIdx = line.indexOf('<!--');
+    while (openIdx >= 0) {
+      pieces += expandLine(line.slice(pos, openIdx), safeVars, onUnknown, i + 1);
+      const closeIdx = line.indexOf('-->', openIdx + 4);
+      if (closeIdx < 0) {
+        pieces += line.slice(openIdx);
+        inHtmlComment = true;
+        pos = line.length;
+        break;
+      }
+      pieces += line.slice(openIdx, closeIdx + 3);
+      pos = closeIdx + 3;
+      openIdx = line.indexOf('<!--', pos);
+    }
+    pieces += expandLine(line.slice(pos), safeVars, onUnknown, i + 1);
+    out[i] = pieces;
   }
 
   return out.join('\n');

@@ -40,6 +40,7 @@ const dmMd = require('./lib/doc-model-md');
 const templateLoader = require('./lib/template-loader');
 const mustacheResolve = require('./lib/mustache-resolve');
 const pageNarrative = require('./lib/page-narrative');
+const projectIntrospect = require('./lib/project-introspect');
 const mermaidAdapter = require('./adapters/mermaid');
 const bootstrapExports = require('./bootstrap');
 
@@ -104,10 +105,15 @@ function resolveImageRef(captureFile) {
 }
 
 function buildPageDescriptionElement(capture, inspection, opts = {}) {
+  // Prefer the human-curated `capture.title` from meta.yaml — it is in the
+  // target document language and reflects the author's intent ("Главная
+  // страница платформы"), whereas `inspection.title` echoes the literal H1
+  // shown in the screenshot (often a dev placeholder like "Event
+  // Management System") and would leak English into a Russian guide.
   const element = {
     type: 'page-description',
     page_id: capture.id,
-    title: inspection && inspection.title ? inspection.title : capture.title || capture.id,
+    title: capture.title || (inspection && inspection.title) || capture.id,
     file: resolveImageRef(capture.file),
     description: null,
     checklist: [],
@@ -129,7 +135,7 @@ function pushWarning(ctx, scope, message) {
   ctx.warnings.push({ scope, message });
 }
 
-function buildContext(cfg, opts = {}) {
+async function buildContext(cfg, opts = {}) {
   const configPath = cfg.configPath || path.join(process.cwd(), 'docs', 'meta.yaml');
   const metaLoaded = cfg.meta ? { data: cfg.meta, log: [] } : metaLib.load(configPath);
   const meta = metaLoaded.data;
@@ -186,10 +192,25 @@ function buildContext(cfg, opts = {}) {
     }
   }
 
+  // Two-stage derivation:
+  //   1. deriveContextDefaults — sync, parses meta.app.url for port / system_url
+  //      and meta.project_path for project_dir. Always runs, even in unit tests.
+  //   2. project-introspect — async, scans the actual project tree for
+  //      framework / db_* / service_name / migration_command / seed_command /
+  //      repo_url. Skipped when opts.skipIntrospect is true (unit-test escape).
   const derivedMetadata = {
     year: String(new Date().getFullYear()),
     ...metadataAutofill.deriveContextDefaults({ app: meta.app, project_path: projectPath }),
   };
+  let introspect = { framework: null, derived: {}, sources: {} };
+  if (!opts.skipIntrospect) {
+    try {
+      introspect = await projectIntrospect.deriveProjectMetadata(projectPath, opts.introspectOpts || {});
+      Object.assign(derivedMetadata, introspect.derived);
+    } catch (err) {
+      warnings.push({ scope: 'introspect', message: `project introspect failed: ${err.message}` });
+    }
+  }
   const { merged: metadata } = metadataAutofill.mergeMetadata(meta.metadata || {}, derivedMetadata);
 
   const lang = resolveLang(meta, opts);
@@ -226,6 +247,7 @@ function buildContext(cfg, opts = {}) {
     mermaidBin,
     puppeteerConfigPath,
     docType: null,
+    introspect,
   };
 }
 
@@ -454,6 +476,9 @@ async function generateOne(docType, ctx, opts) {
 
 async function runGenerate(cfg, opts = {}) {
   const ctx = await buildContext(cfg, opts);
+  if (ctx.introspect && ctx.introspect.framework) {
+    process.stderr.write(`[introspect] framework=${ctx.introspect.framework}; derived ${Object.keys(ctx.introspect.derived).length} keys\n`);
+  }
   for (const line of ctx.metaLog) process.stderr.write(`[meta] ${line}\n`);
 
   const docTypes = filterDocTypes(ctx.meta.doc_types, opts.only);

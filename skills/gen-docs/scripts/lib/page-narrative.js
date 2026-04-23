@@ -21,33 +21,42 @@
  * QA artefacts.
  */
 
+// Prose templates use varied phrasing so the rendered guide reads like a
+// technical writer's prose and not a mechanical list dump. Each helper
+// returns a single complete sentence (ends with a period).
 const STRINGS = {
   ru: {
-    actions: 'Доступные действия',
-    filters: 'Можно отфильтровать список по полям',
-    columnsHas: 'Таблица содержит колонки',
-    rowActions: 'для каждой строки доступны действия',
-    bulkActions: 'для массового выбора доступны действия',
-    pagination: 'предусмотрена постраничная навигация',
-    modals: 'Из этого экрана открываются модальные окна',
-    emptyState: 'Экран показан в виде пустого состояния',
-    errorPage: 'Экран отображает страницу ошибки',
-    loginForm: 'На экране отображается форма входа в систему',
-    breadcrumb: 'Хлебные крошки указывают путь',
-    fallback: (title) => `На рисунке приведён внешний вид экрана «${title}».`,
+    breadcrumb: (path) => `Навигационная цепочка: ${path}.`,
+    loginForm: 'На экране отображается форма входа в систему.',
+    errorPage: 'Экран показан в состоянии ошибки.',
+    emptyState: 'Экран показан в состоянии «нет данных».',
+    actionsOne:  (label)  => `В верхней части экрана размещена кнопка ${label}.`,
+    actionsMany: (labels) => `В верхней части экрана размещены кнопки ${labels}.`,
+    filtersOne:  (label)  => `Над списком расположен фильтр ${label}.`,
+    filtersMany: (labels) => `Над списком расположены фильтры ${labels}.`,
+    tableColumns:  (cols) => `Список оформлен в виде таблицы со столбцами ${cols}`,
+    tableRow:      (acts) => `для каждой строки доступны действия ${acts}`,
+    tableBulk:     (acts) => `для пакетной обработки доступны действия ${acts}`,
+    tablePagination:        'предусмотрена постраничная навигация',
+    modalsOne:   (label)  => `Из экрана открывается модальное окно ${label}.`,
+    modalsMany:  (labels) => `Из экрана открываются модальные окна ${labels}.`,
+    fallback: (title) => `На рисунке показан внешний вид экрана «${title}».`,
   },
   en: {
-    actions: 'Available actions',
-    filters: 'The list can be filtered by',
-    columnsHas: 'The table has columns',
-    rowActions: 'each row exposes the actions',
-    bulkActions: 'bulk-selection actions are',
-    pagination: 'paginated navigation is provided',
-    modals: 'Modal dialogs that can be opened from this screen',
-    emptyState: 'The screen is shown in an empty state',
-    errorPage: 'The screen shows an error page',
-    loginForm: 'The screen renders a login form',
-    breadcrumb: 'Breadcrumb path',
+    breadcrumb: (path) => `Breadcrumb: ${path}.`,
+    loginForm: 'The screen renders the login form.',
+    errorPage: 'The screen is shown in an error state.',
+    emptyState: 'The screen is shown in an empty state.',
+    actionsOne:  (label)  => `The top of the screen exposes the ${label} button.`,
+    actionsMany: (labels) => `The top of the screen exposes the buttons ${labels}.`,
+    filtersOne:  (label)  => `Above the list, the ${label} filter is available.`,
+    filtersMany: (labels) => `Above the list, filters by ${labels} are available.`,
+    tableColumns:  (cols) => `The list is rendered as a table with columns ${cols}`,
+    tableRow:      (acts) => `every row exposes the actions ${acts}`,
+    tableBulk:     (acts) => `bulk-select actions include ${acts}`,
+    tablePagination:        'paginated navigation is provided',
+    modalsOne:   (label)  => `The screen opens the ${label} dialog.`,
+    modalsMany:  (labels) => `The screen opens the dialogs ${labels}.`,
     fallback: (title) => `The figure shows the «${title}» screen.`,
   },
 };
@@ -56,10 +65,32 @@ function selectLang(lang) {
   return lang && /^en/i.test(lang) ? 'en' : 'ru';
 }
 
-function quoteList(items, lang) {
-  // For ru and en alike we use guillemets «» — the surrounding doc style is
-  // already Russian-leaning and pandoc preserves them in DOCX output.
+function quoteList(items) {
   return items.map((s) => `«${String(s).trim()}»`).join(', ');
+}
+
+/**
+ * Conjoin a list of already-quoted items: «А», «Б», «В» → «А», «Б» и «В».
+ * Single-item: «А». Empty: ''.
+ */
+function quoteAnd(items) {
+  if (items.length === 0) return '';
+  if (items.length === 1) return `«${items[0]}»`;
+  const head = items.slice(0, -1).map((s) => `«${s}»`).join(', ');
+  return `${head} и «${items[items.length - 1]}»`;
+}
+
+function uniqueByLowercase(items) {
+  const seen = new Set();
+  /** @type {string[]} */
+  const out = [];
+  for (const raw of items) {
+    const k = String(raw).trim().toLowerCase();
+    if (!k || seen.has(k)) continue;
+    seen.add(k);
+    out.push(String(raw).trim());
+  }
+  return out;
 }
 
 function nonEmptyArray(value) {
@@ -71,7 +102,7 @@ function nonEmptyString(value) {
 }
 
 function pickLabels(items) {
-  return nonEmptyArray(items)
+  const all = nonEmptyArray(items)
     .map((entry) => {
       if (entry == null) return null;
       if (typeof entry === 'string') return entry.trim() || null;
@@ -79,6 +110,7 @@ function pickLabels(items) {
       return candidate ? String(candidate).trim() : null;
     })
     .filter(Boolean);
+  return uniqueByLowercase(all);
 }
 
 function pickColumnNames(columns) {
@@ -94,56 +126,37 @@ function buildSentences(inspection, lang) {
 
   const breadcrumb = nonEmptyArray(inspection.breadcrumb).map(String).filter(Boolean);
   if (breadcrumb.length > 1) {
-    sentences.push(`${t.breadcrumb}: ${breadcrumb.join(' / ')}.`);
+    sentences.push(t.breadcrumb(breadcrumb.join(' → ')));
   }
 
-  if (inspection.is_login_form) {
-    sentences.push(`${t.loginForm}.`);
-  }
-  if (inspection.is_error_page) {
-    sentences.push(`${t.errorPage}.`);
-  }
-  if (inspection.is_empty_state) {
-    sentences.push(`${t.emptyState}.`);
-  }
+  if (inspection.is_login_form) sentences.push(t.loginForm);
+  if (inspection.is_error_page) sentences.push(t.errorPage);
+  if (inspection.is_empty_state) sentences.push(t.emptyState);
 
   const buttons = pickLabels(inspection.top_buttons);
-  if (buttons.length > 0) {
-    sentences.push(`${t.actions}: ${quoteList(buttons, lang)}.`);
-  }
+  if (buttons.length === 1) sentences.push(t.actionsOne(`«${buttons[0]}»`));
+  else if (buttons.length > 1) sentences.push(t.actionsMany(quoteAnd(buttons)));
 
   const filters = pickLabels(inspection.filters);
-  if (filters.length > 0) {
-    sentences.push(`${t.filters}: ${quoteList(filters, lang)}.`);
-  }
+  if (filters.length === 1) sentences.push(t.filtersOne(`«${filters[0]}»`));
+  else if (filters.length > 1) sentences.push(t.filtersMany(quoteAnd(filters)));
 
   const table = inspection.table;
   if (table && typeof table === 'object') {
     const cols = pickColumnNames(table.columns);
     const tableParts = [];
-    if (cols.length > 0) {
-      tableParts.push(`${t.columnsHas}: ${quoteList(cols, lang)}`);
-    }
+    if (cols.length > 0) tableParts.push(t.tableColumns(quoteAnd(cols)));
     const rowActions = pickLabels(table.row_actions);
-    if (rowActions.length > 0) {
-      tableParts.push(`${t.rowActions}: ${quoteList(rowActions, lang)}`);
-    }
+    if (rowActions.length > 0) tableParts.push(t.tableRow(quoteAnd(rowActions)));
     const bulkActions = pickLabels(table.bulk_actions);
-    if (bulkActions.length > 0) {
-      tableParts.push(`${t.bulkActions}: ${quoteList(bulkActions, lang)}`);
-    }
-    if (table.has_pagination) {
-      tableParts.push(t.pagination);
-    }
-    if (tableParts.length > 0) {
-      sentences.push(`${tableParts.join('; ')}.`);
-    }
+    if (bulkActions.length > 0) tableParts.push(t.tableBulk(quoteAnd(bulkActions)));
+    if (table.has_pagination) tableParts.push(t.tablePagination);
+    if (tableParts.length > 0) sentences.push(`${tableParts.join('; ')}.`);
   }
 
   const modals = pickLabels(inspection.modals_visible);
-  if (modals.length > 0) {
-    sentences.push(`${t.modals}: ${quoteList(modals, lang)}.`);
-  }
+  if (modals.length === 1) sentences.push(t.modalsOne(`«${modals[0]}»`));
+  else if (modals.length > 1) sentences.push(t.modalsMany(quoteAnd(modals)));
 
   return sentences;
 }

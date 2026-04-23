@@ -73,7 +73,7 @@ function mkTmpProject() {
             action_sequence: null,
             component_kind: null,
             journey: null,
-            title: 'Home',
+            title: 'Главная',
             access: 'public',
             url: 'http://localhost:3000/',
             file: 'guest/desktop/home.png',

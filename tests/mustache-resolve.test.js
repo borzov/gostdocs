@@ -93,4 +93,31 @@ describe('resolveMustache', () => {
     const src = 'plain {a}';
     expect(resolveMustache(src, { a: 'X' })).toBe('plain X');
   });
+
+  test('does not substitute tokens inside HTML comments (single line)', () => {
+    const seen = [];
+    const out = resolveMustache(
+      '<!-- AGENT: see screenshots/{name}.png -->',
+      {},
+      { onUnknown: (k) => seen.push(k) },
+    );
+    expect(out).toBe('<!-- AGENT: see screenshots/{name}.png -->');
+    expect(seen).toEqual([]);
+  });
+
+  test('does not substitute tokens inside HTML comments (multi-line)', () => {
+    const src = [
+      '<!-- AGENT: long instruction',
+      'with {placeholder} that should NOT be substituted',
+      'and another {x} inside.',
+      '-->',
+      'Real {key} here.',
+    ].join('\n');
+    const seen = [];
+    const out = resolveMustache(src, { key: 'value' }, { onUnknown: (k) => seen.push(k) });
+    expect(out).toContain('with {placeholder}');
+    expect(out).toContain('Real value here.');
+    // Only the in-prose `{key}` was inspected; comment tokens stayed silent.
+    expect(seen).toEqual([]);
+  });
 });

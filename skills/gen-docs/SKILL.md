@@ -344,6 +344,38 @@ on first write to prevent credentials from entering version control.
 **Q6** (strict mode only): Title page metadata
 - Organization name, system name, document code, version, city
 
+### Auto-discovery — what NOT to ask the user for
+
+The skill auto-extracts the bulk of `meta.metadata.*` from the project tree
+via `lib/project-introspect.js`. Before falling back to a manual question,
+the orchestrator MUST trust the introspect result. Specifically:
+
+| Field | Source (when found) |
+|---|---|
+| `framework` | `artisan` / `yii` / `bin/console` / `manage.py` / `bin/rails` / `next.config.*` / `nuxt.config.*` / `svelte.config.*` / `package.json` deps |
+| `db_user`, `db_name`, `db_host`, `db_port` | `.env.example` / `.env.template` / `.env.dist` (Laravel `DB_DATABASE`/`DB_USERNAME`, Postgres `POSTGRES_*`, MySQL `MYSQL_*`) |
+| `service_name` | `docker-compose.yml` services block — first of `app`/`web`/`backend`/`api` or first declared service |
+| `migration_command` | `make migrate` (if Makefile) > `npm run migrate` (if package.json scripts) > framework default (`php artisan migrate`, `python manage.py migrate`, `bin/rails db:migrate`, …) |
+| `seed_command` | same priority chain |
+| `port`, `system_url` | parsed from `meta.app.url` |
+| `project_dir` | basename of `meta.project_path` |
+| `repo_url` | `git remote get-url origin` inside `meta.project_path` |
+| `version`, `organization`, `responsible`, `year` | `lib/metadata-autofill.deriveMetadata` (git tag, `package.json`, git config) |
+
+The orchestrator should run `node scripts/generate.js --config docs/meta.yaml --dry-run` early in the flow purely to collect `[warn] mustache: unresolved {KEY}` messages — those are the ONLY keys the user needs to fill in.
+
+### Q7 — Smart fill-in for whatever is left
+
+After Phase 6 emits its first set of `[warn] mustache:` lines, the orchestrator collects the unique unresolved keys (excluding template-author placeholders like `{role}` / `{Название роли}` which are filled in by writing role-specific prose, not metadata). Then it asks the user via a SINGLE `AskUserQuestion` call (max 4 questions per call — split into multiple calls if needed):
+
+- For `repo_url`: «Укажите URL git-репозитория проекта (или «—», если не используется).»
+- For `db_user` / `db_name` / `service_name`: «В вашем `.env.example` / `docker-compose.yml` не найдено значение `<key>`. Введите его.»
+- For `migration_command` / `seed_command`: «Команда для применения миграций / заливки начальных данных (если автогенерация ошибочна).»
+
+Each question has a sensible `description` field showing where the skill looked. Answers go straight into `docs/meta.yaml` `metadata:` block via `lib/meta.save`. Then re-run `generate.js` (this time without `--dry-run`).
+
+The user is never asked twice for the same key in one session.
+
 ### meta.yaml format (v0.3)
 
 ```yaml
