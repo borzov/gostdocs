@@ -120,6 +120,171 @@ describe('Django urls.py', () => {
   });
 });
 
+describe('React Router (createBrowserRouter or JSX <Route>)', () => {
+  test('extracts paths from createBrowserRouter([{path, element}, ...])', () => {
+    const root = makeTmp({
+      'package.json': JSON.stringify({ dependencies: { react: '^18', 'react-router-dom': '^6' } }),
+      'src/router.tsx': `
+        import { createBrowserRouter } from 'react-router-dom';
+        export const router = createBrowserRouter([
+          { path: '/', element: <Home /> },
+          { path: '/about', element: <About /> },
+          { path: '/users/:id', element: <UserDetail /> },
+        ]);
+      `,
+    });
+    try {
+      const out = rd.discoverRoutes(root);
+      const paths = out.map((r) => r.path).sort();
+      expect(paths).toEqual(['/', '/about', '/users/:id']);
+    } finally { rm(root); }
+  });
+
+  test('extracts paths from JSX <Route path="..."> declarations', () => {
+    const root = makeTmp({
+      'package.json': JSON.stringify({ dependencies: { 'react-router-dom': '^6' } }),
+      'src/App.tsx': `
+        import { Routes, Route } from 'react-router-dom';
+        export default function App() {
+          return (
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/admin/*" element={<AdminLayout />} />
+            </Routes>
+          );
+        }
+      `,
+    });
+    try {
+      const out = rd.discoverRoutes(root);
+      const paths = out.map((r) => r.path);
+      expect(paths).toEqual(expect.arrayContaining(['/', '/profile', '/admin/*']));
+    } finally { rm(root); }
+  });
+});
+
+describe('SvelteKit (src/routes/ directory)', () => {
+  test('reads +page.svelte files and infers paths', () => {
+    const root = makeTmp({
+      'svelte.config.js': '',
+      'src/routes/+page.svelte': '',
+      'src/routes/about/+page.svelte': '',
+      'src/routes/blog/[slug]/+page.svelte': '',
+    });
+    try {
+      const paths = rd.discoverRoutes(root).map((r) => r.path).sort();
+      expect(paths).toEqual(['/', '/about', '/blog/:slug']);
+    } finally { rm(root); }
+  });
+});
+
+describe('Nuxt 3 (pages/ directory)', () => {
+  test('reads .vue files and infers paths', () => {
+    const root = makeTmp({
+      'nuxt.config.ts': '',
+      'pages/index.vue': '',
+      'pages/about.vue': '',
+      'pages/users/[id].vue': '',
+    });
+    try {
+      const paths = rd.discoverRoutes(root).map((r) => r.path).sort();
+      expect(paths).toEqual(['/', '/about', '/users/:id']);
+    } finally { rm(root); }
+  });
+});
+
+describe('Astro (src/pages/ directory)', () => {
+  test('reads .astro files and infers paths', () => {
+    const root = makeTmp({
+      'astro.config.mjs': '',
+      'src/pages/index.astro': '',
+      'src/pages/blog/[slug].astro': '',
+      'src/pages/contact.md': '',
+    });
+    try {
+      const paths = rd.discoverRoutes(root).map((r) => r.path).sort();
+      expect(paths).toEqual(['/', '/blog/:slug', '/contact']);
+    } finally { rm(root); }
+  });
+});
+
+describe('FastAPI (decorator scan)', () => {
+  test('extracts @app.get/@router.post paths', () => {
+    const root = makeTmp({
+      'requirements.txt': 'fastapi\n',
+      'main.py': `
+        from fastapi import FastAPI, APIRouter
+        app = FastAPI()
+        router = APIRouter()
+
+        @app.get("/")
+        def home():
+            return {}
+
+        @router.get("/items/{item_id}")
+        def get_item(item_id: int):
+            return {}
+
+        @app.post("/login")
+        def login():
+            return {}
+      `,
+    });
+    try {
+      const paths = rd.discoverRoutes(root).map((r) => r.path).sort();
+      expect(paths).toEqual(['/', '/items/:item_id', '/login']);
+    } finally { rm(root); }
+  });
+});
+
+describe('Flask (decorator scan)', () => {
+  test('extracts @app.route paths', () => {
+    const root = makeTmp({
+      'requirements.txt': 'Flask\n',
+      'app.py': `
+        from flask import Flask
+        app = Flask(__name__)
+
+        @app.route('/')
+        def home(): pass
+
+        @app.route('/users/<int:user_id>', methods=['GET'])
+        def user_detail(user_id): pass
+      `,
+    });
+    try {
+      const paths = rd.discoverRoutes(root).map((r) => r.path).sort();
+      expect(paths).toEqual(['/', '/users/:user_id']);
+    } finally { rm(root); }
+  });
+});
+
+describe('Spring Boot (@GetMapping / @PostMapping)', () => {
+  test('extracts paths from @RequestMapping class-level + @GetMapping method-level', () => {
+    const root = makeTmp({
+      'pom.xml': '<project><dependencies><dependency><groupId>org.springframework.boot</groupId></dependency></dependencies></project>',
+      'src/main/java/com/acme/UserController.java': `
+        package com.acme;
+        @RestController
+        @RequestMapping("/api/users")
+        public class UserController {
+          @GetMapping
+          public List<User> list() { return null; }
+          @GetMapping("/{id}")
+          public User one(@PathVariable Long id) { return null; }
+          @PostMapping("/create")
+          public User create(@RequestBody User u) { return null; }
+        }
+      `,
+    });
+    try {
+      const paths = rd.discoverRoutes(root).map((r) => r.path).sort();
+      expect(paths).toEqual(['/api/users/', '/api/users/:id', '/api/users/create']);
+    } finally { rm(root); }
+  });
+});
+
 describe('graceful fallback when no router files', () => {
   test('returns empty array', () => {
     const root = makeTmp({ 'README.md': 'x' });

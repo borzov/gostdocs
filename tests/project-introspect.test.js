@@ -76,6 +76,95 @@ describe('detectFramework', () => {
     try { expect(introspect.detectFramework(root).framework).toBe('express'); } finally { rm(root); }
   });
 
+  test('FastAPI via requirements.txt', () => {
+    const root = makeTmpProject({
+      'requirements.txt': 'fastapi==0.110\nuvicorn==0.27\n',
+      'main.py': 'from fastapi import FastAPI\napp = FastAPI()\n',
+    });
+    try { expect(introspect.detectFramework(root).framework).toBe('fastapi'); } finally { rm(root); }
+  });
+
+  test('FastAPI via pyproject.toml', () => {
+    const root = makeTmpProject({
+      'pyproject.toml': '[project]\nname = "x"\ndependencies = ["fastapi>=0.100"]\n',
+      'main.py': '',
+    });
+    try { expect(introspect.detectFramework(root).framework).toBe('fastapi'); } finally { rm(root); }
+  });
+
+  test('Flask via requirements.txt', () => {
+    const root = makeTmpProject({
+      'requirements.txt': 'Flask==3.0\n',
+      'app.py': '',
+    });
+    try { expect(introspect.detectFramework(root).framework).toBe('flask'); } finally { rm(root); }
+  });
+
+  test('Spring Boot via pom.xml', () => {
+    const root = makeTmpProject({
+      'pom.xml': '<project><dependencies><dependency><groupId>org.springframework.boot</groupId></dependency></dependencies></project>',
+    });
+    try { expect(introspect.detectFramework(root).framework).toBe('spring-boot'); } finally { rm(root); }
+  });
+
+  test('Spring Boot via build.gradle', () => {
+    const root = makeTmpProject({
+      'build.gradle': "plugins { id 'org.springframework.boot' version '3.2.0' }\n",
+    });
+    try { expect(introspect.detectFramework(root).framework).toBe('spring-boot'); } finally { rm(root); }
+  });
+
+  test('Phoenix via mix.exs', () => {
+    const root = makeTmpProject({
+      'mix.exs': 'defmodule MyApp.MixProject do\n  defp deps do\n    [{:phoenix, "~> 1.7"}]\n  end\nend\n',
+    });
+    try { expect(introspect.detectFramework(root).framework).toBe('phoenix'); } finally { rm(root); }
+  });
+
+  test('Astro via astro.config.mjs', () => {
+    const root = makeTmpProject({
+      'astro.config.mjs': 'export default {}',
+      'package.json': '{}',
+    });
+    try { expect(introspect.detectFramework(root).framework).toBe('astro'); } finally { rm(root); }
+  });
+
+  test('Angular via angular.json', () => {
+    const root = makeTmpProject({
+      'angular.json': '{}',
+      'package.json': JSON.stringify({ dependencies: { '@angular/core': '^17' } }),
+    });
+    try { expect(introspect.detectFramework(root).framework).toBe('angular'); } finally { rm(root); }
+  });
+
+  test('Remix via package.json @remix-run/react', () => {
+    const root = makeTmpProject({
+      'package.json': JSON.stringify({ dependencies: { '@remix-run/react': '^2' } }),
+    });
+    try { expect(introspect.detectFramework(root).framework).toBe('remix'); } finally { rm(root); }
+  });
+
+  test('Go (Gin) via go.mod', () => {
+    const root = makeTmpProject({
+      'go.mod': 'module x\n\ngo 1.21\n\nrequire github.com/gin-gonic/gin v1.9.1\n',
+    });
+    try { expect(introspect.detectFramework(root).framework).toBe('gin'); } finally { rm(root); }
+  });
+
+  test('Go (Echo) via go.mod', () => {
+    const root = makeTmpProject({
+      'go.mod': 'module x\n\nrequire github.com/labstack/echo/v4 v4.11\n',
+    });
+    try { expect(introspect.detectFramework(root).framework).toBe('echo'); } finally { rm(root); }
+  });
+
+  test('.NET ASP.NET Core via .csproj', () => {
+    const root = makeTmpProject({
+      'MyApp.csproj': '<Project Sdk="Microsoft.NET.Sdk.Web"></Project>',
+    });
+    try { expect(introspect.detectFramework(root).framework).toBe('aspnet-core'); } finally { rm(root); }
+  });
+
   test('returns null when nothing matches', () => {
     const root = makeTmpProject({ 'README.md': '# x' });
     try { expect(introspect.detectFramework(root).framework).toBeNull(); } finally { rm(root); }
@@ -245,6 +334,32 @@ describe('extractMakefileTargets', () => {
 });
 
 describe('deriveProjectMetadata — end-to-end', () => {
+  test('parses 12-factor DATABASE_URL into db_user/db_name/db_host/db_port', async () => {
+    const root = makeTmpProject({
+      '.env.example': 'DATABASE_URL=postgres://app_usr:app_pwd@db.local:5433/app_db\n',
+    });
+    try {
+      const out = await introspect.deriveProjectMetadata(root, { gitRun: noopGit });
+      expect(out.derived.db_user).toBe('app_usr');
+      expect(out.derived.db_name).toBe('app_db');
+      expect(out.derived.db_host).toBe('db.local');
+      expect(out.derived.db_port).toBe('5433');
+    } finally { rm(root); }
+  });
+
+  test('parses MongoDB MONGODB_URI', async () => {
+    const root = makeTmpProject({
+      '.env.example': 'MONGODB_URI=mongodb://mongo_usr:secret@mongo:27017/myapp\n',
+    });
+    try {
+      const out = await introspect.deriveProjectMetadata(root, { gitRun: noopGit });
+      expect(out.derived.db_user).toBe('mongo_usr');
+      expect(out.derived.db_name).toBe('myapp');
+      expect(out.derived.db_host).toBe('mongo');
+      expect(out.derived.db_port).toBe('27017');
+    } finally { rm(root); }
+  });
+
   test('recognises Laravel-style DB_DATABASE / DB_USERNAME aliases', async () => {
     const root = makeTmpProject({
       artisan: '#!/usr/bin/env php\n',

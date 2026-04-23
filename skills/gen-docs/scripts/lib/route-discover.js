@@ -233,12 +233,250 @@ function discoverDjangoUrls(projectPath) {
   return out;
 }
 
+/* ----------------------------------------------------- React Router -- */
+
+function discoverReactRouter(projectPath) {
+  // Try package.json deps for the marker; if absent, skip entirely.
+  const SUBDIRS = ['', 'frontend/', 'client/', 'web/', 'apps/web/', 'apps/frontend/'];
+  let hasDep = false;
+  for (const sub of SUBDIRS) {
+    const pkg = readText(path.join(projectPath, sub + 'package.json'));
+    if (pkg && /"react-router(-dom)?"/.test(pkg)) { hasDep = true; break; }
+  }
+  if (!hasDep) return [];
+
+  const out = [];
+  const FILES = ['src/router.tsx', 'src/router.ts', 'src/router.jsx', 'src/router.js',
+                 'src/routes.tsx', 'src/routes.ts', 'src/App.tsx', 'src/App.jsx', 'src/main.tsx'];
+  for (const sub of SUBDIRS) {
+    for (const f of FILES) {
+      const text = readText(path.join(projectPath, sub + f));
+      if (!text) continue;
+      // 1. Object form: { path: '/x', element: ... }
+      const objRe = /\bpath\s*:\s*['"`]([^'"`]+)['"`]/g;
+      let m;
+      while ((m = objRe.exec(text)) !== null) {
+        out.push({ id: inferIdFromPath(m[1]), path: m[1], title: null, access_role: 'guest' });
+      }
+      // 2. JSX form: <Route path="/x" ... />
+      const jsxRe = /<Route\s+[^>]*\bpath\s*=\s*['"`]([^'"`]+)['"`]/g;
+      while ((m = jsxRe.exec(text)) !== null) {
+        out.push({ id: inferIdFromPath(m[1]), path: m[1], title: null, access_role: 'guest' });
+      }
+    }
+  }
+  return out;
+}
+
+/* ------------------------------------------------------ SvelteKit -- */
+
+function discoverFileSystemRoutes(projectPath, sourceRoot, fileMatchers, opts = {}) {
+  const dir = path.join(projectPath, sourceRoot);
+  if (!existsP(dir)) return [];
+  const out = [];
+  const stripIndex = opts.stripIndex || null; // e.g. 'index' for Nuxt
+  const walk = (current, urlPath) => {
+    const entries = fs.readdirSync(current, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        const seg = entry.name.startsWith('[') && entry.name.endsWith(']')
+          ? `:${entry.name.slice(1, -1).replace(/^\.\.\./, '')}`
+          : entry.name;
+        const next = urlPath === '/' ? `/${seg}` : `${urlPath}/${seg}`;
+        walk(path.join(current, entry.name), next);
+      } else if (fileMatchers.some((re) => re.test(entry.name))) {
+        let p = urlPath;
+        if (stripIndex && entry.name.startsWith(stripIndex + '.')) {
+          // Nuxt: pages/index.vue -> '/'
+          // already handled by passing urlPath=/ at root
+        } else {
+          // Single-file route like pages/about.vue -> /about; or [id].vue -> /:id
+          const stem = entry.name.replace(/\.[^.]+$/, '');
+          if (stem !== stripIndex && stem !== 'index') {
+            const seg = stem.startsWith('[') && stem.endsWith(']')
+              ? `:${stem.slice(1, -1)}`
+              : stem;
+            p = urlPath === '/' ? `/${seg}` : `${urlPath}/${seg}`;
+          }
+        }
+        out.push({ id: inferIdFromPath(p), path: p, title: null, access_role: 'guest' });
+      }
+    }
+  };
+  walk(dir, '/');
+  return out;
+}
+
+function discoverSvelteKit(projectPath) {
+  if (!existsP(path.join(projectPath, 'svelte.config.js')) && !existsP(path.join(projectPath, 'svelte.config.ts'))) return [];
+  // SvelteKit specifically uses +page.svelte / +page.ts as the route file.
+  const dir = path.join(projectPath, 'src/routes');
+  if (!existsP(dir)) return [];
+  const out = [];
+  const walk = (current, urlPath) => {
+    const entries = fs.readdirSync(current, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        const seg = entry.name.startsWith('[') && entry.name.endsWith(']')
+          ? `:${entry.name.slice(1, -1)}`
+          : entry.name;
+        const next = urlPath === '/' ? `/${seg}` : `${urlPath}/${seg}`;
+        walk(path.join(current, entry.name), next);
+      } else if (/^\+page\.(svelte|ts|js)$/.test(entry.name)) {
+        out.push({ id: inferIdFromPath(urlPath), path: urlPath, title: null, access_role: 'guest' });
+      }
+    }
+  };
+  walk(dir, '/');
+  return out;
+}
+
+/* --------------------------------------------------------- Nuxt 3 -- */
+
+function discoverNuxt(projectPath) {
+  const hasMarker = ['nuxt.config.js', 'nuxt.config.ts', 'nuxt.config.mjs']
+    .some((f) => existsP(path.join(projectPath, f)));
+  if (!hasMarker) return [];
+  return discoverFileSystemRoutes(projectPath, 'pages', [/\.vue$/], { stripIndex: 'index' });
+}
+
+/* ----------------------------------------------------------- Astro -- */
+
+function discoverAstro(projectPath) {
+  const hasMarker = ['astro.config.mjs', 'astro.config.ts', 'astro.config.js']
+    .some((f) => existsP(path.join(projectPath, f)));
+  if (!hasMarker) return [];
+  return discoverFileSystemRoutes(projectPath, 'src/pages', [/\.astro$/, /\.mdx?$/], { stripIndex: 'index' });
+}
+
+/* --------------------------------------------------------- FastAPI -- */
+
+function discoverFastAPI(projectPath) {
+  // Only proceed if FastAPI is a declared dependency.
+  const reqs = readText(path.join(projectPath, 'requirements.txt'));
+  const pyproj = readText(path.join(projectPath, 'pyproject.toml'));
+  if (!(reqs && /(^|\n)\s*fastapi\b/i.test(reqs)) && !(pyproj && /fastapi/i.test(pyproj))) return [];
+  return scanPythonDecorators(projectPath, /@(?:app|router|api|api_router|v\d+_router)\.(?:get|post|put|patch|delete|head|options)\s*\(\s*['"]([^'"]+)['"]/g);
+}
+
+function discoverFlask(projectPath) {
+  const reqs = readText(path.join(projectPath, 'requirements.txt'));
+  const pyproj = readText(path.join(projectPath, 'pyproject.toml'));
+  if (!(reqs && /(^|\n)\s*Flask\b/i.test(reqs)) && !(pyproj && /(^|[^a-z])flask([^a-z]|$)/i.test(pyproj))) return [];
+  return scanPythonDecorators(projectPath, /@(?:app|bp|blueprint|api)\.route\s*\(\s*['"]([^'"]+)['"]/g);
+}
+
+function scanPythonDecorators(projectPath, decoratorRe) {
+  /** @type {Array<Record<string, any>>} */
+  const out = [];
+  const walk = (dir) => {
+    let entries;
+    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        if (entry.name.startsWith('.') || entry.name === 'node_modules' || entry.name === 'venv' || entry.name === '__pycache__') continue;
+        walk(path.join(dir, entry.name));
+        continue;
+      }
+      if (!entry.name.endsWith('.py')) continue;
+      const text = readText(path.join(dir, entry.name));
+      if (!text) continue;
+      let m;
+      // Reset regex stateful index per file.
+      decoratorRe.lastIndex = 0;
+      while ((m = decoratorRe.exec(text)) !== null) {
+        const raw = m[1];
+        // Convert FastAPI {item_id} or Flask <int:user_id> to :param.
+        const norm = raw
+          .replace(/\{([^}]+)\}/g, ':$1')
+          .replace(/<[^:>]+:([^>]+)>/g, ':$1')
+          .replace(/<([^>]+)>/g, ':$1');
+        const finalPath = norm.startsWith('/') ? norm : '/' + norm;
+        out.push({ id: inferIdFromPath(finalPath), path: finalPath, title: null, access_role: 'guest' });
+      }
+    }
+  };
+  walk(projectPath);
+  return out;
+}
+
+/* ----------------------------------------------------- Spring Boot -- */
+
+function discoverSpringBoot(projectPath) {
+  // Only scan if Spring is a declared dep (pom.xml or build.gradle).
+  const SUBDIRS = ['', 'backend/', 'apps/backend/', 'apps/api/', 'server/'];
+  const hasSpring = SUBDIRS.some((sub) => {
+    const pom = readText(path.join(projectPath, sub + 'pom.xml'));
+    if (pom && /(spring-boot|org\.springframework\.boot)/.test(pom)) return true;
+    for (const g of ['build.gradle', 'build.gradle.kts']) {
+      const grd = readText(path.join(projectPath, sub + g));
+      if (grd && /org\.springframework\.boot/.test(grd)) return true;
+    }
+    return false;
+  });
+  if (!hasSpring) return [];
+
+  /** @type {Array<Record<string, any>>} */
+  const out = [];
+  const walk = (dir) => {
+    let entries;
+    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        if (entry.name.startsWith('.') || entry.name === 'node_modules' || entry.name === 'target' || entry.name === 'build') continue;
+        walk(path.join(dir, entry.name));
+        continue;
+      }
+      if (!/\.java$|\.kt$/.test(entry.name)) continue;
+      const text = readText(path.join(dir, entry.name));
+      if (!text) continue;
+
+      // Class-level @RequestMapping prefix (optional).
+      const classMapping = text.match(/@RequestMapping\s*\(\s*(?:value\s*=\s*)?["']([^"']+)["']/);
+      const prefix = classMapping ? classMapping[1].replace(/\/$/, '') : '';
+
+      // Method-level @GetMapping / @PostMapping / etc. (NOT @RequestMapping —
+      // that one is reserved for the class-level prefix above; mixing them
+      // would double-count the prefix).
+      // Two forms:
+      //   1. @GetMapping("/path")            -> use the literal segment
+      //   2. @GetMapping (no parens)         -> the method takes the class
+      //                                         prefix verbatim ("/api/users/")
+      const re = /@(?:Get|Post|Put|Patch|Delete)Mapping(?:\s*\(\s*(?:value\s*=\s*)?["']([^"']+)["'])?/g;
+      let m;
+      while ((m = re.exec(text)) !== null) {
+        const literal = m[1];
+        let full;
+        if (literal === undefined) {
+          full = (prefix || '/') + '/'; // class-prefix only, with trailing slash to mark "index"
+        } else {
+          const segment = literal.startsWith('/') ? literal : '/' + literal;
+          full = (prefix || '') + segment;
+        }
+        if (!full.startsWith('/')) full = '/' + full;
+        full = full.replace(/\/{2,}/g, '/');
+        const norm = full.replace(/\{([^}]+)\}/g, ':$1');
+        out.push({ id: inferIdFromPath(norm), path: norm, title: null, access_role: 'guest' });
+      }
+    }
+  };
+  walk(projectPath);
+  return out;
+}
+
 function discoverRoutes(projectPath) {
   const all = [
     ...discoverVueRouter(projectPath),
     ...discoverNextAppRouter(projectPath),
     ...discoverLaravelRoutes(projectPath),
     ...discoverDjangoUrls(projectPath),
+    ...discoverReactRouter(projectPath),
+    ...discoverSvelteKit(projectPath),
+    ...discoverNuxt(projectPath),
+    ...discoverAstro(projectPath),
+    ...discoverFastAPI(projectPath),
+    ...discoverFlask(projectPath),
+    ...discoverSpringBoot(projectPath),
   ];
   const seen = new Set();
   const out = [];
@@ -256,6 +494,13 @@ module.exports = {
   discoverNextAppRouter,
   discoverLaravelRoutes,
   discoverDjangoUrls,
+  discoverReactRouter,
+  discoverSvelteKit,
+  discoverNuxt,
+  discoverAstro,
+  discoverFastAPI,
+  discoverFlask,
+  discoverSpringBoot,
   inferIdFromPath,
   inferAccessRole,
 };
