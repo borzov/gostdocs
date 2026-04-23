@@ -132,12 +132,24 @@ Acceptance: strict mode rejects generation if NFR section missing and no placeho
 
 Maps to user categories: 3.2, 3.3, 6.1.
 
-- [ ] `scripts/ui-inspector.js` - orchestrates vision pass over captured PNGs
-- [ ] Vision providers: Claude (default, via skill Agent tool) and OpenAI gpt-4o (opt-in via `OPENAI_API_KEY`)
-- [ ] Key setup prompt with `--vision-provider openai` - explains env var, stores in meta with redacted marker
-- [ ] Per-shot JSON: `{ title, breadcrumb, layout, top_buttons, filters, table: { columns, row_actions }, modals_visible, is_login_form }`
-- [ ] `is_login_form=true` on supposedly authenticated role -> warning + visual_flag in REPORT
-- [ ] Extra prompt for Builder / Editor / Wizard shots - list tools and elements
+### Phase 5A — schemas + prompt builder + store (done)
+
+- [x] Per-shot JSON schema in `scripts/lib/inspection-schema.js` with
+      `extractJson` tolerant of fenced / wrapped model output
+- [x] Disk store with capture-path mirror in `scripts/lib/inspection-store.js`
+- [x] Prompt builder in `scripts/lib/inspection-prompt.js` — Claude + OpenAI
+      share the same template; component-kind hints for Builder / Editor /
+      Wizard / Constructor / Designer / Composer; ru/en
+- [x] is_login_form flag surfaced for Phase 7 REPORT red-flagging
+
+### Phase 5B — integration (next)
+
+- [ ] `scripts/adapters/vision/openai.js` — gpt-4o call via fetch with
+      image_url payload; OPENAI_API_KEY pickup; redact in any echo
+- [ ] `scripts/ui-inspector.js` CLI — iterate manifest, invoke selected
+      provider, write JSON via inspection-store, emit warnings for
+      is_login_form in authenticated roles
+- [ ] Interactive key-setup prompt when --vision-provider openai is chosen
 
 Acceptance: every PNG has a matching `_inspection/<role>/<file>.json`; false-login-screen shots are flagged automatically.
 

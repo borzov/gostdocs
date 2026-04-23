@@ -40,6 +40,45 @@ Playwright or Chromium.
 - `scripts/bootstrap.js [--force|--check]` — install/verify sandbox
 - `scripts/precheck.js --config <meta.yaml>` — run precheck phase
 
+## UI inspection (Phase 5A)
+
+Every PNG in the capture manifest gets a matching JSON describing the
+visible interface. The Phase 6 generator consumes those JSONs to fill the
+per-screen checklist (breadcrumb, top buttons, filters, columns, row
+actions, modals) rather than guessing from the screenshot alone.
+
+### Disk layout
+
+Mirror of `docs/screenshots/`:
+
+```
+docs/screenshots/admin/desktop/ru/home.png
+docs/generated/_inspection/admin/desktop/ru/home.json
+```
+
+### Subagent contract (vision pass)
+
+After capture, for each manifest entry the orchestrator either:
+
+1. **Claude path (default)** — invokes the `general-purpose` Agent with the
+   prompt built by `scripts/lib/inspection-prompt.js`. The agent reads the
+   PNG via the Read tool and returns a JSON object matching
+   `scripts/lib/inspection-schema.js`.
+2. **OpenAI path** — when `vision.provider=openai` and `OPENAI_API_KEY` is
+   set, the same prompt is POSTed to the gpt-4o chat API with the image
+   as a base64 `image_url` part. The response body is parsed by
+   `inspection-schema.extractJson` (tolerates fenced / wrapped output).
+
+Results are persisted via `scripts/lib/inspection-store.js`:
+`write(projectPath, captureFile, data)`, `listAll(projectPath)` for
+Phase 7 reports.
+
+### Red-flag detection
+
+`is_login_form=true` in an authenticated role's JSON marks the shot as a
+failed capture. Phase 7 `REPORT.md` surfaces such entries so the user
+sees them before opening the DOCX.
+
 ## Research and specs (Phase 4)
 
 ### Subagent contract

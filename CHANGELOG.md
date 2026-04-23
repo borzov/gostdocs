@@ -12,7 +12,27 @@ Rework from a linear 4-phase flow to a 7-phase pipeline with structured Doc-Mode
 intermediates, stack-agnostic adapters, and blocking precheck. See `ROADMAP.md`
 for the full phased plan and acceptance criteria.
 
-### Phase 4B — Research integration (this release)
+### Phase 5A — UI inspection modules (this release)
+
+#### Added
+- `scripts/lib/inspection-schema.js` — Zod schema for per-screenshot JSON
+  (title, breadcrumb, layout, top_buttons, filters, table with columns /
+  row_actions / bulk_actions / pagination, modals_visible, is_login_form /
+  is_error_page / is_empty_state, component_kind_notes). `extractJson`
+  helper tolerates fenced / wrapped model output.
+- `scripts/lib/inspection-store.js` — disk mirror of capture paths:
+  `docs/screenshots/<role>/<viewport>/<locale>/X.png` →
+  `docs/generated/_inspection/<role>/<viewport>/<locale>/X.json`. Provides
+  `read / write / exists / listAll` plus safe path resolution.
+- `scripts/lib/inspection-prompt.js` — pure builder for the vision
+  prompt. Same template for Claude and OpenAI; adds component-kind hints
+  for Builder / Editor / Wizard / Constructor / Designer / Composer
+  surfaces; role-aware guidance for is_login_form flagging; ru/en.
+- 23 new jest tests covering schema validation, extractJson tolerance,
+  disk roundtrip, prompt language + component variants, role hints. 339
+  tests total, all green.
+
+### Phase 4B — Research integration (earlier in this release)
 
 #### Added
 - `scripts/lib/schema-model.js` — Zod-validated normalised schema shape
