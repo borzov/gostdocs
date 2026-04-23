@@ -12,7 +12,39 @@ Rework from a linear 4-phase flow to a 7-phase pipeline with structured Doc-Mode
 intermediates, stack-agnostic adapters, and blocking precheck. See `ROADMAP.md`
 for the full phased plan and acceptance criteria.
 
-### Phase 2 — Auth v2 (this release)
+### Phase 3A — Capture planning (this release)
+
+#### Added
+- `scripts/lib/routes.js` — parse + substitute parametrized routes across
+  four dialects (Express `:id`, Next.js `[id]`, Next.js catch-all `[...slug]`,
+  Django `<int:id>`). Handles URL encoding, optional `:id?`, and inference of
+  the collection path for list endpoints
+- `scripts/adapters/id-resolver.js` — fallback chain for real id resolution:
+  explicit `parametrize` override, `GET <list>?limit=1` with dotted idPath,
+  list_scrape with configurable row selector. Pure planner — execution lives
+  in Phase 3B
+- `scripts/lib/manifest.js` — Zod schema for manifest v2 with per-capture
+  axes (role, viewport, theme, locale, state, action_sequence, component_kind,
+  journey). Filename builder sanitises unsafe characters and collapses missing
+  axes
+- `scripts/lib/matrix.js` — `buildMatrix` generates the deterministic capture
+  plan: roles × viewports × themes × locales × states × pages, plus journey
+  steps. Guest roles skip `auth_required` pages; filename-based dedupe folds
+  duplicate component+page entries
+- `scripts/lib/journeys.js` — loader and Zod schema for `journeys.yaml`
+  (separate file, resolved via `meta.journeys_file`). Steps are normalised
+  with stable ids `<journey>__<02d>`
+- `scripts/adapters/component-detector/scanner.js` — walks the project for
+  `*Builder|*Editor|*Wizard|*Constructor|*Designer|*Composer` files, joins
+  them with route literals nearby in router/URLconf files, and suggests three
+  capture shots per component (empty / in-progress / done)
+- `meta.yaml` schema extended: `pages[]` with `actions[]`, `apply_states`,
+  `component_kind`, `parametrize`, `list_endpoint`, `list_selector`,
+  `id_attribute`, `dismiss`
+- 78 new jest tests covering route parsing, id resolution, manifest, journey
+  loading/validation, component detection, matrix generation
+
+### Phase 2 — Auth v2 (earlier in this release)
 
 #### Added
 - `scripts/adapters/auth/` — stack-agnostic auth adapter:

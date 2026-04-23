@@ -28,6 +28,33 @@ const viewportSchema = z.object({
   height: z.number().int().positive(),
 });
 
+const actionStepSchema = z.object({
+  click: z.string().optional(),
+  fill: z.record(z.string()).optional(),
+  wait_for: z.string().optional(),
+  wait_ms: z.number().int().nonnegative().optional(),
+  screenshot: z.boolean().optional(),
+  screenshot_id: z.string().optional(),
+});
+
+const pageSchema = z.object({
+  id: z.string().min(1),
+  path: z.string().min(1),
+  name: z.string().optional(),
+  title: z.string().optional(),
+  fullPage: z.boolean().optional(),
+  apply_states: z.boolean().optional(),
+  actions: z.array(actionStepSchema).optional(),
+  dismiss: z.array(z.string()).optional(),
+  component_kind: z
+    .enum(['builder', 'editor', 'wizard', 'constructor', 'designer', 'composer'])
+    .optional(),
+  parametrize: z.record(z.union([z.string(), z.number()])).optional(),
+  list_endpoint: z.string().optional(),
+  list_selector: z.string().optional(),
+  id_attribute: z.string().optional(),
+});
+
 const roleSchema = z.object({
   role: z.string().min(1),
   credentials: z.null().optional(),
@@ -109,6 +136,7 @@ const schema = z
       }),
 
     states: z.array(z.enum(['empty', 'error', 'permission-denied'])).default([]),
+    pages: z.array(pageSchema).default([]),
     journeys_file: z.string().nullable().optional(),
 
     precheck: z

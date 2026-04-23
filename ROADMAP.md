@@ -76,13 +76,24 @@ Acceptance: expired credentials cause healthcheck failure and skip of role; no a
 
 Maps to user categories: 2.1, 2.2, 2.3, 2.4, 2.5.
 
-- [ ] Research extracts parametrized routes (`:id`, `/new`, `/edit`, nested tabs)
-- [ ] Real-id substitution via API or first list row
-- [ ] `actions[]` per page - click/fill/wait before shot, multiple shots per URL
-- [ ] `states[]` - empty / error / permission-denied with preparation helpers
-- [ ] Capture matrix: `viewports x themes x locales` into `docs/screenshots/<role>/<viewport>/<theme>/<locale>/`
-- [ ] Manifest extended with full metadata
-- [ ] Wizard / Builder / Editor / Constructor detection -> required 3-5 shots (empty / in-progress / done)
+### Phase 3A — planning modules (done)
+
+- [x] `scripts/lib/routes.js` — parse + substitute parametrized routes across Express / Next.js / Django dialects
+- [x] `scripts/adapters/id-resolver.js` — fallback chain for real-id resolution (explicit, collection API, list scrape)
+- [x] `scripts/lib/matrix.js` — `buildMatrix` generates the deterministic capture plan across all axes
+- [x] `scripts/lib/manifest.js` — Zod schema for manifest v2 + filename builder
+- [x] `scripts/lib/journeys.js` — loader + schema for separate `journeys.yaml`
+- [x] `scripts/adapters/component-detector/scanner.js` — Builder/Editor/Wizard detection + route binding
+- [x] `meta.yaml` schema extended with `pages[]` (actions, states, component_kind, parametrize)
+
+### Phase 3B — capture integration (next)
+
+- [ ] `scripts/capture.js` — new orchestrator that consumes `plan.json` and emits manifest v2
+- [ ] Action executor — clicks / fills / wait_for / mark-screenshot across Playwright page
+- [ ] State preparator — prepare `empty` / `error` / `permission-denied` via configured hooks
+- [ ] List-scrape id resolver — DOM fallback when `GET <list>?limit=1` unsupported
+- [ ] Wire dismiss selectors into every post-goto hook
+- [ ] Retire legacy `screenshot.js` once parity is reached
 
 Acceptance: `:id` routes captured with real values; modals and empty states visible in generated docs.
 

@@ -40,6 +40,33 @@ Playwright or Chromium.
 - `scripts/bootstrap.js [--force|--check]` — install/verify sandbox
 - `scripts/precheck.js --config <meta.yaml>` — run precheck phase
 
+## Capture planning (Phase 3A)
+
+The plan-capture phase turns declarative config into a deterministic list of
+capture tuples. Nothing navigates a page until the plan is emitted.
+
+Inputs:
+- `pages[]` from `meta.yaml` + routes from research + auto-shots from
+  component detector (Builder/Editor/Wizard/Constructor)
+- Roles, viewports, themes, locales from `meta.capture.*`
+- States (`empty`, `error`, `permission-denied`) only applied to pages that set
+  `apply_states: true`
+- Journeys from `journeys.yaml` (separate file per architecture decision) —
+  each step with `screenshot: true` becomes its own tuple
+
+Output: a flat array under `docs/generated/_captures/plan.json` with one entry
+per PNG to be captured. Each entry has a stable `tupleId`, a resolved `file`
+path, and every axis value.
+
+Parametrized routes (`/users/:id/edit`, `[id]`, `<int:id>`) are supported by
+`scripts/lib/routes.js`. `scripts/adapters/id-resolver.js` emits a fallback
+chain per page: explicit `parametrize` values, then `GET <list>?limit=1`,
+then DOM scrape of a list page at capture time.
+
+Manifest v2 schema is defined in `scripts/lib/manifest.js`. Filenames follow
+`{role}/{viewport}/{theme}/{locale}/{id}{__state}.png` — missing axes
+collapse, unsafe characters are sanitised.
+
 ## Authentication (Phase 2)
 
 v0.3 prefers API-login over form submission:
