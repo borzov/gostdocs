@@ -671,7 +671,15 @@ async function deriveProjectMetadata(projectPath, opts = {}) {
     framework_source: fwk.source,
     manifest_kind: pkg ? 'npm' : null,
     services: compose.services,
-    env,
+    env: {
+      // `vars` retains the flat key→value map that existing callers expect;
+      // `keys` and `source` surface the inputs downstream builders (e.g.
+      // auto-sections.buildDistributionComposition) need to describe the
+      // distribution without having to re-read the template.
+      vars: env,
+      keys: Object.keys(env),
+      source: envSource,
+    },
     derived,
     sources,
     stack_manifest: stackManifest,

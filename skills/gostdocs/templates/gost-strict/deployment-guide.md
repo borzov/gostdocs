@@ -3,13 +3,12 @@ title: "{system_name}. Инструкция по развёртыванию"
 lang: ru-RU
 ---
 
-<!-- GOST mode: strict | Template version: 1.0 -->
+<!-- GOST mode: strict | Template version: 2.0 -->
 <!-- Reference: РД 50-34.698-90 (структура), ГОСТ 34.601-90 (развёртывание). -->
 
-<!-- AGENT: This document is the shortest of the guides — a reviewer must
-be able to follow it from the first page to a running, populated system
-in under 30 minutes. Keep prose minimal; commands and tables do the
-heavy lifting. -->
+<!-- AGENT: Shortest guide in the family — reviewer must go from zero to a
+running, populated system in under 30 minutes. Let the GEN directives do
+the heavy lifting; keep hand-written prose short. -->
 
 # Общие сведения
 
@@ -21,10 +20,7 @@ heavy lifting. -->
 
 ## Состав дистрибутива
 
-<!-- AGENT: List the artefacts shipped with the distribution:
-docker-compose.yml, environment template (`.env.example`), seed script,
-README (if any), and the commit hash or version tag. Source: project
-layout + doc-researcher DEPLOYMENT. -->
+<!-- GEN:distribution-composition -->
 
 ## Ограничения
 
@@ -36,11 +32,6 @@ layout + doc-researcher DEPLOYMENT. -->
 
 <!-- GEN:deploy-commands -->
 
-<!-- AGENT: After the command list above, add a short paragraph describing
-what a healthy startup looks like: which log lines indicate each service
-is ready (nginx "started", backend "listening on", DB migrations "done"
-etc.). Source: doc-researcher DEPLOYMENT + container logs. -->
-
 ## Проверка работоспособности
 
 Откройте в браузере адрес `{system_url}`. Должна загрузиться главная страница системы. Если страница не открывается:
@@ -51,23 +42,13 @@ etc.). Source: doc-researcher DEPLOYMENT + container logs. -->
 
 # Тестовые учётные записи
 
-<!-- AGENT: The table below lists every test account produced by the
-default seeder. Passwords are listed in plain text because the DOCX is
-distributed alongside the container image and is not intended for public
-publication. If the guide is destined for an external reviewer, pass
-`include_passwords="false"` on the directive to generate the redacted
-variant and hand out the real passwords through a secure channel. -->
-
 <!-- GEN:test-accounts -->
 
 После входа под каждой из указанных ролей эксперт получает доступ к соответствующим разделам интерфейса. Полный перечень функций по ролям приведён в документе «Руководство пользователя» (разделы «Виды деятельности и функции»).
 
 # Проверочные сценарии
 
-<!-- AGENT: List 3-5 smoke-test scenarios the reviewer should run after
-deployment to confirm the major features work end-to-end. Each scenario:
-role, steps (3-6 bullets), expected outcome. Source: doc-researcher
-FEATURES + spec-reader USER STORIES. -->
+<!-- GEN:smoke-scenarios -->
 
 # Сопровождение
 
@@ -83,14 +64,8 @@ docker compose down -v
 
 ## Типовые проблемы
 
-<!-- AGENT: Document 3-5 common failure modes and their remedies. Each
-entry: symptom (one sentence), cause (one sentence), fix (1-3 lines of
-shell). Source: doc-researcher DEPLOYMENT + project-specific CI failures.
--->
+<!-- GEN:common-issues -->
 
 ## Контакты сопровождения
 
-<!-- AGENT: If the distribution provides a way to reach the maintainer
-(issue tracker, support email), list it here. Otherwise state that the
-expert should coordinate feedback through the contracting party. Source:
-project metadata + spec-reader CONTACTS. -->
+<!-- GEN:maintenance-contacts -->

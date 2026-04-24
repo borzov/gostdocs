@@ -56,6 +56,8 @@ const roleModelRender = require('./lib/role-model-render');
 const titleNormalizer = require('./lib/title-normalizer');
 const deployCommands = require('./lib/deploy-commands');
 const testAccounts = require('./lib/test-accounts');
+const researchExtract = require('./lib/research-extract');
+const autoSections = require('./lib/auto-sections');
 const bootstrapExports = require('./bootstrap');
 
 const DEFAULT_TEMPLATE_ROOT = path.join(bootstrapExports.SKILL_DIR, 'templates');
@@ -388,10 +390,23 @@ function buildExpanders(ctx) {
       return roleModelRender.buildRoleActivities(roleModel, { role: attrs.role, lang: ctx.lang });
     },
 
-    'rbac-matrix': () => {
+    'rbac-matrix': (attrs) => {
       const matrix = (ctx.coverage && ctx.coverage.aggregate && ctx.coverage.aggregate.rbac_matrix)
         || (ctx.coverage && ctx.coverage.rbac_matrix)
         || null;
+      // `silent_if_missing="true"` suppresses the TODO admonition and
+      // simply returns null — useful when the template supplies a textual
+      // fallback (e.g. GEN:research-section) right after this directive.
+      if (attrs && (attrs.silent_if_missing === 'true' || attrs.silent_if_missing === true)) {
+        if (!matrix
+            || !Array.isArray(matrix.domains)
+            || !Array.isArray(matrix.rows)
+            || matrix.domains.length === 0
+            || matrix.rows.length === 0) {
+          pushWarning(ctx, 'rbac-matrix', 'no rbac_matrix in coverage; silent_if_missing → directive skipped');
+          return null;
+        }
+      }
       const roleModel = (ctx.coverage && ctx.coverage.aggregate && ctx.coverage.aggregate.role_model)
         || (ctx.coverage && ctx.coverage.role_model)
         || null;
@@ -408,6 +423,63 @@ function buildExpanders(ctx) {
       introspect: ctx.introspect || {},
       meta: ctx.meta,
     }, { lang: ctx.lang }),
+
+    'extension-points': () => autoSections.buildExtensionPoints(
+      { projectPath: ctx.projectPath },
+      { lang: ctx.lang },
+    ),
+
+    'distribution-composition': () => autoSections.buildDistributionComposition(
+      { introspect: ctx.introspect || {} },
+      { lang: ctx.lang },
+    ),
+
+    'smoke-scenarios': () => autoSections.buildSmokeScenarios(
+      { meta: ctx.meta },
+      { lang: ctx.lang },
+    ),
+
+    'common-issues': () => autoSections.buildCommonIssues(
+      { introspect: ctx.introspect || {} },
+      { lang: ctx.lang },
+    ),
+
+    'maintenance-contacts': () => autoSections.buildMaintenanceContacts(
+      { meta: ctx.meta, introspect: ctx.introspect || {} },
+      { lang: ctx.lang },
+    ),
+
+    'research-section': (attrs) => {
+      const source = attrs.source;
+      const section = attrs.section;
+      if (!source || !section) {
+        pushWarning(ctx, 'research-section', 'GEN:research-section requires both source and section attributes');
+        return null;
+      }
+      const md = ctx.researchMd && ctx.researchMd[source];
+      if (!md) {
+        pushWarning(ctx, 'research-section', `no _research/${source}.md file found`);
+        return null;
+      }
+      // `section` may be a comma-separated list of aliases so projects that
+      // use slightly different headings (Deployment vs Развёртывание) still
+      // resolve without template-level forks.
+      const aliases = section.split(',').map((s) => s.trim()).filter(Boolean);
+      const maxWords = Number(attrs.max_words) > 0 ? Number(attrs.max_words) : undefined;
+      const body = researchExtract.extractSection(md, aliases, { maxWords });
+      if (!body) {
+        pushWarning(ctx, 'research-section', `no "${section}" heading in _research/${source}.md`);
+        return null;
+      }
+      // Shift heading levels in the extracted body so they nest under the
+      // calling section. `level_shift="2"` turns every ## inside the source
+      // into ####; default is no shift.
+      const shift = Number(attrs.level_shift) > 0 ? Number(attrs.level_shift) : 0;
+      const shifted = shift === 0
+        ? body
+        : body.replace(/^(#+)(\s+)/gm, (_, hashes, space) => `${'#'.repeat(Math.min(6, hashes.length + shift))}${space}`);
+      return { type: 'raw', format: 'markdown', content: shifted };
+    },
 
     'test-accounts': (attrs) => {
       // include_passwords defaults to true for on-disk deployment guides
