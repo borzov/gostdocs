@@ -426,3 +426,79 @@ describe('deriveProjectMetadata — end-to-end', () => {
     } finally { rm(root); }
   });
 });
+
+describe('multistack detection', () => {
+  test('monorepo with backend/composer.json + frontend/package.json returns both stacks', () => {
+    const root = makeTmpProject({
+      'backend/composer.json': JSON.stringify({ require: { 'yiisoft/yii2': '^2.0.50' } }),
+      'frontend/package.json': JSON.stringify({
+        dependencies: { vue: '^3.4.0', typescript: '^5.0.0' },
+      }),
+    });
+    try {
+      const manifest = introspect.buildStackManifest(root);
+      expect(manifest.backend_stack).toEqual(expect.objectContaining({
+        language: 'PHP', framework: 'Yii2', version: '2.0.50', manifest: 'backend/composer.json',
+      }));
+      expect(manifest.frontend_stack).toEqual(expect.objectContaining({
+        language: 'TypeScript', framework: 'Vue', version: '3.4.0',
+      }));
+    } finally { rm(root); }
+  });
+
+  test('root workspaces-only package.json is skipped in favour of subdirs', () => {
+    const root = makeTmpProject({
+      'package.json': JSON.stringify({ workspaces: ['packages/*'] }),
+      'frontend/package.json': JSON.stringify({ dependencies: { react: '^18.0.0' } }),
+    });
+    try {
+      const fe = introspect.detectFrontendStack(root);
+      expect(fe.framework).toBe('React');
+    } finally { rm(root); }
+  });
+
+  test('docker-compose image tags produce version records', () => {
+    const root = makeTmpProject({
+      'docker-compose.yml': [
+        'services:',
+        '  db:',
+        '    image: postgres:14-alpine',
+        '  cache:',
+        '    image: "redis:7"',
+        '  app:',
+        '    build: .',
+      ].join('\n'),
+    });
+    try {
+      const manifest = introspect.buildStackManifest(root);
+      const byName = Object.fromEntries(manifest.containers.map((c) => [c.name, c]));
+      expect(byName.db.version).toBe('14-alpine');
+      expect(byName.cache.version).toBe('7');
+      expect(byName.app).toBeUndefined();
+    } finally { rm(root); }
+  });
+
+  test('Python backend with Django detected via pyproject.toml', () => {
+    const root = makeTmpProject({
+      'backend/pyproject.toml': '[project]\ndependencies = ["django>=5.0.0"]\n',
+    });
+    try {
+      const be = introspect.detectBackendStack(root);
+      expect(be.language).toBe('Python');
+      expect(be.framework).toBe('Django');
+    } finally { rm(root); }
+  });
+
+  test('deriveProjectMetadata surfaces stack_manifest for monorepo layouts', async () => {
+    const root = makeTmpProject({
+      'backend/composer.json': JSON.stringify({ require: { 'laravel/framework': '^11.0' } }),
+      'frontend/package.json': JSON.stringify({ dependencies: { '@angular/core': '^17.0.0' } }),
+    });
+    try {
+      const out = await introspect.deriveProjectMetadata(root, { gitRun: noopGit });
+      expect(out.stack_manifest).toBeTruthy();
+      expect(out.stack_manifest.backend_stack.framework).toBe('Laravel');
+      expect(out.stack_manifest.frontend_stack.framework).toBe('Angular');
+    } finally { rm(root); }
+  });
+});

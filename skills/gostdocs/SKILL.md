@@ -24,6 +24,7 @@ Generate formal documentation for information systems with automatic screenshots
 5. ui-inspection   vision agent - JSON per screenshot
 6. generation      Doc-Model JSON - Markdown - DOCX
 7. validation      md-lint + docx-lint + pHash - REPORT.md
+7.5 finalisation   grep-lint for template leftovers - FINALIZATION_REPORT.md
 ```
 
 Each phase reads and writes to disk; any phase can be re-run in isolation via

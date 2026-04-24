@@ -53,6 +53,7 @@ const mermaidAdapter = require('./adapters/mermaid');
 const openapiAdapter = require('./adapters/openapi');
 const diagramsLib = require('./lib/diagrams');
 const roleModelRender = require('./lib/role-model-render');
+const titleNormalizer = require('./lib/title-normalizer');
 const bootstrapExports = require('./bootstrap');
 
 const DEFAULT_TEMPLATE_ROOT = path.join(bootstrapExports.SKILL_DIR, 'templates');
@@ -153,10 +154,21 @@ function buildPageDescriptionElement(capture, inspection, opts = {}) {
   // страница платформы"), whereas `inspection.title` echoes the literal H1
   // shown in the screenshot (often a dev placeholder like "Event
   // Management System") and would leak English into a Russian guide.
+  //
+  // When neither hand-curated title nor vision title is acceptable, the
+  // title-normaliser produces a readable Russian fallback from the page id
+  // (e.g. "event-detail" → "Мероприятие Карточка") so we never render a
+  // bare slug as a section heading.
+  const rawTitle = capture.title || (inspection && inspection.title) || null;
+  const { title: normalisedTitle } = titleNormalizer.resolveDisplayTitle(
+    rawTitle,
+    capture.id,
+    opts.lang || 'ru',
+  );
   const element = {
     type: 'page-description',
     page_id: capture.id,
-    title: capture.title || (inspection && inspection.title) || capture.id,
+    title: normalisedTitle || capture.id,
     file: resolveImageRef(capture.file),
     description: null,
     checklist: [],
@@ -429,6 +441,7 @@ function buildExpanders(ctx) {
         return buildPageDescriptionElement(capture, inspection || {}, {
           level: headingLevel,
           narrative,
+          lang: ctx.lang,
         });
       });
     },
@@ -529,6 +542,14 @@ function buildExpanders(ctx) {
       const framework = ctx.introspect && ctx.introspect.framework;
       const stack = stackDetector.detectStack(ctx.projectPath, { framework });
       ctx.stack = stack;
+      // Multistack manifest from project-introspect (monorepo-aware) wins
+      // when present — it distinguishes backend and frontend instead of
+      // collapsing them into a single "Язык" row. Fall back to the legacy
+      // single-stack detection otherwise.
+      const manifest = (ctx.coverage && ctx.coverage.aggregate && ctx.coverage.aggregate.stack_manifest)
+        || (ctx.coverage && ctx.coverage.stack_manifest)
+        || (ctx.introspect && ctx.introspect.stack_manifest)
+        || null;
       const lang = ctx.lang === 'en' ? 'en' : 'ru';
       const L = lang === 'en'
         ? { cat: 'Category', tech: 'Technology', ver: 'Version', purpose: 'Purpose',
@@ -537,6 +558,10 @@ function buildExpanders(ctx) {
             purpose_lang: 'Server-side logic', purpose_fw: 'Web framework',
             purpose_db: 'Data storage', purpose_docker: 'Containerisation',
             purpose_compose: 'Container orchestration',
+            be_lang: 'Backend language', be_fw: 'Backend framework',
+            fe_lang: 'Frontend language', fe_fw: 'Frontend framework',
+            purpose_be_lang: 'Server-side logic', purpose_be_fw: 'Server-side framework',
+            purpose_fe_lang: 'Client-side UI layer', purpose_fe_fw: 'Client-side framework',
             unknown: 'to be confirmed' }
         : { cat: 'Категория', tech: 'Технология', ver: 'Версия', purpose: 'Назначение',
             lang: 'Язык программирования', fw: 'Фреймворк', db: 'База данных',
@@ -544,15 +569,46 @@ function buildExpanders(ctx) {
             purpose_lang: 'Серверная логика', purpose_fw: 'Веб-фреймворк',
             purpose_db: 'Хранение данных', purpose_docker: 'Развёртывание',
             purpose_compose: 'Управление контейнерами',
+            be_lang: 'Язык серверной части', be_fw: 'Серверный фреймворк',
+            fe_lang: 'Язык клиентской части', fe_fw: 'Клиентский фреймворк',
+            purpose_be_lang: 'Серверная логика', purpose_be_fw: 'Серверный фреймворк',
+            purpose_fe_lang: 'Пользовательский интерфейс', purpose_fe_fw: 'Клиентский фреймворк',
             unknown: 'подлежит уточнению' };
       const cell = (v) => (v === null || v === undefined || v === '') ? L.unknown : String(v);
-      const rows = [
-        [L.lang, cell(stack.language), cell(stack.language_version), L.purpose_lang],
-        [L.fw,   cell(stack.framework), cell(stack.framework_version), L.purpose_fw],
-        [L.db,   cell(stack.db_engine), cell(stack.db_version), L.purpose_db],
-        [L.container, 'Docker', L.unknown, L.purpose_docker],
-        [L.orchestr,  'Docker Compose', L.unknown, L.purpose_compose],
-      ];
+
+      const rows = [];
+      const hasMultistack = manifest && (manifest.backend_stack || manifest.frontend_stack);
+      if (hasMultistack) {
+        const be = manifest.backend_stack;
+        const fe = manifest.frontend_stack;
+        if (be) {
+          if (be.language)  rows.push([L.be_lang, cell(be.language), L.unknown, L.purpose_be_lang]);
+          if (be.framework) rows.push([L.be_fw,   cell(be.framework), cell(be.version), L.purpose_be_fw]);
+        }
+        if (fe) {
+          if (fe.language)  rows.push([L.fe_lang, cell(fe.language), L.unknown, L.purpose_fe_lang]);
+          if (fe.framework) rows.push([L.fe_fw,   cell(fe.framework), cell(fe.version), L.purpose_fe_fw]);
+        }
+        if (rows.length === 0) {
+          // Manifest present but both stacks were empty — degrade gracefully.
+          rows.push([L.lang, cell(stack.language), cell(stack.language_version), L.purpose_lang]);
+          rows.push([L.fw,   cell(stack.framework), cell(stack.framework_version), L.purpose_fw]);
+        }
+      } else {
+        rows.push([L.lang, cell(stack.language), cell(stack.language_version), L.purpose_lang]);
+        rows.push([L.fw,   cell(stack.framework), cell(stack.framework_version), L.purpose_fw]);
+      }
+      rows.push([L.db, cell(stack.db_engine), cell(stack.db_version), L.purpose_db]);
+
+      // Container rows: prefer concrete versions from docker-compose when
+      // available, otherwise stick to generic "to be confirmed" entries.
+      const containers = Array.isArray(manifest && manifest.containers) ? manifest.containers : [];
+      const dockerVersion = containers.length > 0 ? '—' : L.unknown;
+      rows.push([L.container, 'Docker', dockerVersion, L.purpose_docker]);
+      rows.push([L.orchestr,  'Docker Compose', containers.length > 0 ? '—' : L.unknown, L.purpose_compose]);
+      for (const c of containers.slice(0, 6)) {
+        rows.push([c.name, c.image.split(':')[0], cell(c.version), L.purpose_docker]);
+      }
       return {
         type: 'table',
         caption: lang === 'en' ? 'Technology stack' : 'Стек используемых технологий',

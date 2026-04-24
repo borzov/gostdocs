@@ -154,6 +154,162 @@ function detectFramework(projectPath, opts = {}) {
   return { framework: null, source: null };
 }
 
+/* ------------------------------------------------------------- stack manifest -- */
+
+const BACKEND_SUBDIRS = ['backend/', 'server/', 'api/', 'app/backend/', 'apps/backend/', 'apps/api/', ''];
+const FRONTEND_SUBDIRS = ['frontend/', 'client/', 'web/', 'app/frontend/', 'apps/web/', 'apps/frontend/', ''];
+
+function matchVersion(text, patterns) {
+  for (const pat of patterns) {
+    const m = pat.exec(text);
+    if (m && m[1]) return m[1].trim();
+  }
+  return null;
+}
+
+/**
+ * Scan the repository for a backend manifest and return a normalised stack
+ * record. The search order favours dedicated subdirectories (`backend/`,
+ * `server/`, `api/`) so monorepo layouts resolve to the server-side stack
+ * even when the root also contains a `package.json`.
+ */
+function detectBackendStack(projectPath, opts = {}) {
+  const fs = opts.fs || fsDefault;
+  for (const sub of BACKEND_SUBDIRS) {
+    const composer = readText(fs, path.join(projectPath, sub + 'composer.json'));
+    if (composer) {
+      const pkg = parseJsonSafe(composer) || {};
+      const deps = { ...(pkg.require || {}), ...(pkg['require-dev'] || {}) };
+      let framework = null;
+      let version = null;
+      if (deps['yiisoft/yii2'])             { framework = 'Yii2';    version = deps['yiisoft/yii2']; }
+      else if (deps['laravel/framework'])   { framework = 'Laravel'; version = deps['laravel/framework']; }
+      else if (deps['symfony/framework-bundle']) { framework = 'Symfony'; version = deps['symfony/framework-bundle']; }
+      else if (deps['cakephp/cakephp'])     { framework = 'CakePHP'; version = deps['cakephp/cakephp']; }
+      return {
+        language: 'PHP',
+        framework,
+        version: version ? String(version).replace(/^[\^~]/, '') : null,
+        manifest: sub + 'composer.json',
+      };
+    }
+    const pyproject = readText(fs, path.join(projectPath, sub + 'pyproject.toml'));
+    const requirements = readText(fs, path.join(projectPath, sub + 'requirements.txt'));
+    if (pyproject || requirements) {
+      const combined = `${pyproject || ''}\n${requirements || ''}`;
+      let framework = null;
+      let version = null;
+      if (/(^|[^a-zA-Z])django([>=<~!\s,'"]|$)/i.test(combined)) {
+        framework = 'Django';
+        version = matchVersion(combined, [/django[>=<~!]+([\d.]+)/i]);
+      } else if (/fastapi/i.test(combined)) {
+        framework = 'FastAPI';
+        version = matchVersion(combined, [/fastapi[>=<~!]+([\d.]+)/i]);
+      } else if (/(^|[^a-zA-Z])flask([>=<~!\s,'"]|$)/i.test(combined)) {
+        framework = 'Flask';
+        version = matchVersion(combined, [/flask[>=<~!]+([\d.]+)/i]);
+      }
+      return {
+        language: 'Python',
+        framework,
+        version,
+        manifest: pyproject ? sub + 'pyproject.toml' : sub + 'requirements.txt',
+      };
+    }
+    const gomod = readText(fs, path.join(projectPath, sub + 'go.mod'));
+    if (gomod) {
+      const goVersion = matchVersion(gomod, [/^go\s+([\d.]+)/m]);
+      let framework = null;
+      if (/gin-gonic\/gin/.test(gomod)) framework = 'Gin';
+      else if (/labstack\/echo/.test(gomod)) framework = 'Echo';
+      else if (/gofiber\/fiber/.test(gomod)) framework = 'Fiber';
+      return { language: 'Go', framework, version: goVersion, manifest: sub + 'go.mod' };
+    }
+    const cargo = readText(fs, path.join(projectPath, sub + 'Cargo.toml'));
+    if (cargo) {
+      let framework = null;
+      if (/actix-web/.test(cargo)) framework = 'Actix-web';
+      else if (/axum/.test(cargo)) framework = 'Axum';
+      else if (/rocket/.test(cargo)) framework = 'Rocket';
+      return { language: 'Rust', framework, version: null, manifest: sub + 'Cargo.toml' };
+    }
+    const gemfile = readText(fs, path.join(projectPath, sub + 'Gemfile'));
+    if (gemfile) {
+      let framework = null;
+      if (/\brails\b/.test(gemfile)) framework = 'Ruby on Rails';
+      else if (/\bsinatra\b/.test(gemfile)) framework = 'Sinatra';
+      return { language: 'Ruby', framework, version: null, manifest: sub + 'Gemfile' };
+    }
+    const pom = readText(fs, path.join(projectPath, sub + 'pom.xml'));
+    if (pom) {
+      const framework = /spring-boot|org\.springframework\.boot/.test(pom) ? 'Spring Boot' : null;
+      const version = matchVersion(pom, [/<version>([\d.]+)<\/version>/]);
+      return { language: 'Java', framework, version, manifest: sub + 'pom.xml' };
+    }
+    for (const gradleName of ['build.gradle', 'build.gradle.kts']) {
+      const grd = readText(fs, path.join(projectPath, sub + gradleName));
+      if (grd) {
+        const framework = /org\.springframework\.boot/.test(grd) ? 'Spring Boot' : null;
+        return { language: 'Java/Kotlin', framework, version: null, manifest: sub + gradleName };
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Scan the repository for a frontend package.json and return a normalised
+ * stack record. We deliberately skip the root package.json when it merely
+ * declares workspace config — the search walks dedicated subdirectories
+ * first to correctly classify monorepo frontends.
+ */
+function detectFrontendStack(projectPath, opts = {}) {
+  const fs = opts.fs || fsDefault;
+  for (const sub of FRONTEND_SUBDIRS) {
+    const pkg = parseJsonSafe(readText(fs, path.join(projectPath, sub + 'package.json')));
+    if (!pkg) continue;
+    const deps = { ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) };
+    // Workspace-only root package — skip and let the next subdir match.
+    if (sub === '' && pkg.workspaces && Object.keys(deps).length === 0) continue;
+    let language = deps.typescript || deps['@types/node'] || pkg.type === 'module' ? 'TypeScript' : 'JavaScript';
+    let framework = null;
+    let version = null;
+    if (deps.vue) { framework = 'Vue';     version = String(deps.vue).replace(/^[\^~]/, ''); }
+    else if (deps['@angular/core']) { framework = 'Angular'; version = String(deps['@angular/core']).replace(/^[\^~]/, ''); }
+    else if (deps.next)  { framework = 'Next.js'; version = String(deps.next).replace(/^[\^~]/, ''); }
+    else if (deps.nuxt || deps.nuxt3) { framework = 'Nuxt'; version = String(deps.nuxt || deps.nuxt3).replace(/^[\^~]/, ''); }
+    else if (deps.astro) { framework = 'Astro'; version = String(deps.astro).replace(/^[\^~]/, ''); }
+    else if (deps['@sveltejs/kit']) { framework = 'SvelteKit'; version = String(deps['@sveltejs/kit']).replace(/^[\^~]/, ''); }
+    else if (deps.svelte) { framework = 'Svelte'; version = String(deps.svelte).replace(/^[\^~]/, ''); }
+    else if (deps.react) { framework = 'React'; version = String(deps.react).replace(/^[\^~]/, ''); }
+    // No recognised frontend framework — skip: this package.json likely
+    // belongs to a tool (e.g. a monorepo root), not the UI.
+    if (!framework) continue;
+    return { language, framework, version, manifest: sub + 'package.json' };
+  }
+  return null;
+}
+
+function buildStackManifest(projectPath, opts = {}) {
+  const fs = opts.fs || fsDefault;
+  const backend = detectBackendStack(projectPath, opts);
+  const frontend = detectFrontendStack(projectPath, opts);
+  const containers = [];
+  for (const name of COMPOSE_CANDIDATES) {
+    const filePath = path.join(projectPath, name);
+    if (exists(fs, filePath)) {
+      const text = readText(fs, filePath);
+      if (text) containers.push(...parseComposeContainers(text));
+      break;
+    }
+  }
+  // When nothing meaningful turned up, return null so the caller can fall
+  // back to a single-framework detection without having to test individual
+  // fields for absence.
+  if (!backend && !frontend && containers.length === 0) return null;
+  return { backend_stack: backend, frontend_stack: frontend, containers };
+}
+
 /* ------------------------------------------------------------- env-vars -- */
 
 const ENV_FILE_CANDIDATES = ['.env.example', '.env.template', '.env.dist', '.env.sample', '.env'];
@@ -240,6 +396,54 @@ function parseComposeServices(text) {
     if (m[1].length === baseIndent) services.push(m[2]);
   }
   return services;
+}
+
+/**
+ * Parse a docker-compose.yml body and return a flat list of
+ * { name, image, version } records, one per service that declares an
+ * `image:` line. Services built from a local Dockerfile are ignored
+ * because their version is not fixed in the compose file.
+ *
+ * Input is the raw YAML string; parsing is deliberately done by hand
+ * (instead of loading yaml) so the helper works even when the parent
+ * module was bootstrapped without a compose validator installed.
+ *
+ * @param {string} text
+ * @returns {Array<{ name: string, image: string, version: string|null }>}
+ */
+function parseComposeContainers(text) {
+  if (!text) return [];
+  const lines = text.split('\n');
+  let inServices = false;
+  let baseIndent = -1;
+  let currentService = null;
+  const byService = new Map();
+  for (const line of lines) {
+    if (!inServices) {
+      if (/^services:\s*$/.test(line)) inServices = true;
+      continue;
+    }
+    if (/^\S/.test(line)) break;
+    const serviceMatch = /^( +)([A-Za-z0-9_.-]+)\s*:\s*$/.exec(line);
+    if (serviceMatch) {
+      if (baseIndent === -1) baseIndent = serviceMatch[1].length;
+      if (serviceMatch[1].length === baseIndent) {
+        currentService = serviceMatch[2];
+        if (!byService.has(currentService)) byService.set(currentService, null);
+      }
+      continue;
+    }
+    if (!currentService) continue;
+    const imageMatch = /^\s+image:\s*['"]?([^'"\s]+)['"]?\s*$/.exec(line);
+    if (imageMatch) byService.set(currentService, imageMatch[1]);
+  }
+  const out = [];
+  for (const [name, image] of byService.entries()) {
+    if (!image) continue;
+    const tagMatch = /:([^@]+?)(?:@.*)?$/.exec(image);
+    out.push({ name, image, version: tagMatch ? tagMatch[1] : null });
+  }
+  return out;
 }
 
 function extractDockerCompose(projectPath, opts = {}) {
@@ -460,6 +664,8 @@ async function deriveProjectMetadata(projectPath, opts = {}) {
     }
   } catch { /* ignore */ }
 
+  const stackManifest = buildStackManifest(projectPath, opts);
+
   return {
     framework: fwk.framework,
     framework_source: fwk.source,
@@ -468,16 +674,21 @@ async function deriveProjectMetadata(projectPath, opts = {}) {
     env,
     derived,
     sources,
+    stack_manifest: stackManifest,
   };
 }
 
 module.exports = {
   detectFramework,
+  detectBackendStack,
+  detectFrontendStack,
+  buildStackManifest,
   extractEnvVars,
   parseEnvFile,
   parseDatabaseUrl,
   extractDockerCompose,
   parseComposeServices,
+  parseComposeContainers,
   extractMakefileTargets,
   inferMigrationCommands,
   inferOrmCommandFromDeps,
