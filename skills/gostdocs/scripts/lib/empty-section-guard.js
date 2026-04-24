@@ -17,8 +17,8 @@
  */
 
 const PLACEHOLDER_TEXT = {
-  ru: '_(Раздел подлежит заполнению — исследование не вернуло данных для этой темы.)_',
-  en: '_(This section is pending — research produced no data for this topic.)_',
+  ru: 'Раздел не удалось автоматически заполнить — исследование кода не нашло соответствующей функциональности. Проверьте, реализована ли эта возможность в системе: если реализована — опишите её вручную, если нет — удалите раздел.',
+  en: 'This section could not be auto-populated — code research did not find corresponding functionality. Verify whether the feature exists in the system: if yes — describe it manually, if not — drop this section.',
 };
 
 const CONTENT_ELEMENT_TYPES = new Set([
@@ -76,44 +76,49 @@ function pathOf(ancestors, section) {
  */
 function applyEmptySectionGuard(doc, ctx) {
   const lang = ctx && ctx.lang === 'en' ? 'en' : 'ru';
-  const placeholder = { type: 'paragraph', text: PLACEHOLDER_TEXT[lang] };
+  const placeholderAdmonition = () => ({ type: 'admonition', kind: 'todo', text: PLACEHOLDER_TEXT[lang] });
   const gostMode = ctx && ctx.meta && ctx.meta.gost_mode;
   const strict = gostMode === 'strict';
   const touched = [];
+  const dropped = [];
 
+  // Post-order walk. Returns true if the section should be kept in the tree.
+  // In lite mode, empty leaves are removed entirely so the document stops
+  // advertising functionality that the system does not have. In strict mode
+  // we preserve the structural section but inject a visible TODO admonition
+  // so the reader can trace why it is blank and decide what to do.
   const visit = (section, ancestors) => {
-    const hasChildren = Array.isArray(section.children) && section.children.length > 0;
     const childAncestors = [...ancestors, section];
-    // Walk children first so nested empties get filled before we decide
-    // whether the parent section is empty overall.
-    for (const child of section.children || []) {
-      visit(child, childAncestors);
+    if (Array.isArray(section.children)) {
+      section.children = section.children.filter((child) => visit(child, childAncestors));
     }
-    // A section with populated children is fine even if its own elements
-    // are empty — container headings legitimately delegate content.
     const hasOwnContent = (section.elements || []).some(elementCountsAsContent);
-    if (hasOwnContent) return;
-    if (hasChildren && section.children.some(sectionHasContent)) return;
-    // Pure leaf: inject the placeholder and record the finding.
-    section.elements.push({ ...placeholder });
+    const hasLiveChildren = (section.children || []).some(sectionHasContent);
+    if (hasOwnContent || hasLiveChildren) return true;
+
     const label = pathOf(ancestors, section);
-    touched.push(label);
-    const entry = {
-      scope: 'empty-section',
-      message: `"${label}" has no research data; placeholder inserted`,
-    };
-    if (strict) {
-      (ctx.blockers = ctx.blockers || []).push(entry);
-    } else {
-      (ctx.warnings = ctx.warnings || []).push(entry);
+    if (!strict) {
+      dropped.push(label);
+      (ctx.warnings = ctx.warnings || []).push({
+        scope: 'empty-section',
+        message: `"${label}" dropped — no research data (gost_mode=lite)`,
+      });
+      return false;
     }
+    section.elements.push(placeholderAdmonition());
+    touched.push(label);
+    (ctx.blockers = ctx.blockers || []).push({
+      scope: 'empty-section',
+      message: `"${label}" has no research data; TODO admonition inserted`,
+    });
+    return true;
   };
 
-  for (const section of doc.sections || []) {
-    visit(section, []);
+  if (Array.isArray(doc.sections)) {
+    doc.sections = doc.sections.filter((s) => visit(s, []));
   }
 
-  return { touchedSections: touched };
+  return { touchedSections: touched, droppedSections: dropped };
 }
 
 module.exports = {

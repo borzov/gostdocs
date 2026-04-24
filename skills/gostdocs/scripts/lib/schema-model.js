@@ -123,6 +123,7 @@ function buildMarkdown(schema, opts = {}) {
     if (table.foreign_keys.length > 0) {
       out.push('');
       out.push(`**${t.fk}:**`);
+      out.push('');
       for (const fk of table.foreign_keys) {
         const cols = fk.columns.join(', ');
         const refCols = fk.references_columns.join(', ');
@@ -136,6 +137,7 @@ function buildMarkdown(schema, opts = {}) {
     if (table.indexes.length > 0) {
       out.push('');
       out.push(`**${t.idx}:**`);
+      out.push('');
       for (const idx of table.indexes) {
         const uniqueTag = idx.unique ? ' (UNIQUE)' : '';
         const name = idx.name ? `${idx.name}: ` : '';

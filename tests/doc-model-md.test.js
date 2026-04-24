@@ -19,7 +19,7 @@ function docWithSections() {
 describe('render', () => {
   test('emits YAML frontmatter', () => {
     const md = render.render(dm.validate(docWithSections()));
-    expect(md).toMatch(/^---\ntitle: Руководство\nlang: ru-RU\n---/);
+    expect(md).toMatch(/^---\ntitle-meta: Руководство\nlang: ru-RU\n---/);
   });
 
   test('numbers figures per top-level section', () => {
@@ -31,8 +31,9 @@ describe('render', () => {
 
   test('numbers tables per top-level section', () => {
     const md = render.render(dm.validate(docWithSections()));
-    expect(md).toMatch(/: Таблица 2\.1 — Параметры/);
+    expect(md).toMatch(/Table: Таблица 2\.1 — Параметры/);
     expect(md).toMatch(/\| Параметр \| Значение \|/);
+    expect(md).toMatch(/Table: Таблица 2\.1 — Параметры\n\n\|/);
   });
 
   test('renders title-page preamble before sections with \\newpage', () => {
@@ -203,7 +204,7 @@ describe('render', () => {
     dm.addElement(s, { type: 'paragraph', text: 'После таблицы.' });
     const md = render.render(dm.validate(doc));
     // Both rows of the table must be flanked by blank lines
-    expect(md).toMatch(/Перед таблицей\.\n\n: Таблица 1\.1 — Параметры\n\| А \| Б \|/);
+    expect(md).toMatch(/Перед таблицей\.\n\nTable: Таблица 1\.1 — Параметры\n\n\| А \| Б \|/);
     expect(md).toMatch(/\| 1 \| 2 \|\n\nПосле таблицы\./);
   });
 });

@@ -50,6 +50,7 @@ const stackDetector = require('./lib/stack-detector');
 const pageNarrative = require('./lib/page-narrative');
 const projectIntrospect = require('./lib/project-introspect');
 const mermaidAdapter = require('./adapters/mermaid');
+const openapiAdapter = require('./adapters/openapi');
 const bootstrapExports = require('./bootstrap');
 
 const DEFAULT_TEMPLATE_ROOT = path.join(bootstrapExports.SKILL_DIR, 'templates');
@@ -232,6 +233,11 @@ async function buildContext(cfg, opts = {}) {
     }
   }
 
+  // Load the normalised OpenAPI document produced by the research step.
+  // Absent specs are not an error — the endpoints-detail expander simply
+  // becomes a no-op with a warning in that case.
+  const openapiDoc = readJsonIfExists(path.join(researchDir, 'openapi.json'));
+
   // Two-stage derivation:
   //   1. deriveContextDefaults — sync, parses meta.app.url for port / system_url
   //      and meta.project_path for project_dir. Always runs, even in unit tests.
@@ -277,6 +283,7 @@ async function buildContext(cfg, opts = {}) {
     coverage,
     researchMd,
     schema,
+    openapi: openapiDoc,
     metadata,
     lang,
     templateRoot,
@@ -313,6 +320,17 @@ function buildExpanders(ctx) {
       }
       const headingLevel = Number(attrs.headingLevel) > 0 ? Number(attrs.headingLevel) : 3;
       const md = schemaModel.buildMarkdown(ctx.schema, { headingLevel, lang: ctx.lang });
+      if (!md) return null;
+      return { type: 'raw', format: 'markdown', content: md };
+    },
+
+    'endpoints-detail': (attrs) => {
+      if (!ctx.openapi || !Array.isArray(ctx.openapi.endpoints) || ctx.openapi.endpoints.length === 0) {
+        pushWarning(ctx, 'endpoints-detail', 'no _research/openapi.json available; endpoint detail section will be empty');
+        return null;
+      }
+      const headingLevel = Number(attrs.headingLevel) > 0 ? Number(attrs.headingLevel) : 3;
+      const md = openapiAdapter.buildMarkdown(ctx.openapi, { headingLevel, lang: ctx.lang });
       if (!md) return null;
       return { type: 'raw', format: 'markdown', content: md };
     },
@@ -620,10 +638,17 @@ async function generateOne(docType, ctx, opts) {
   const expanders = buildExpanders(ctx);
   const doc = await templateLoader.expandSkeleton(skeleton, expanders, ctx);
 
-  // GOST title page — always the first preamble element so a proper cover
-  // precedes the table of contents in the DOCX. Metadata fields are
-  // nullable; the renderer only emits lines for values that are present.
-  doc.preamble.unshift(buildTitlePageElement(docType, ctx));
+  // GOST title page — always the first preamble element, followed by the
+  // explicit TOC marker. We emit the TOC ourselves (raw OpenXML field) rather
+  // than relying on pandoc `--toc`, because pandoc's built-in TOC is forced
+  // to the very top of the DOCX and would land ABOVE the title page.
+  // Metadata fields on the title page are nullable; the renderer only emits
+  // lines for values that are present.
+  const tocTitle = ctx.lang === 'en' ? 'Table of Contents' : 'Содержание';
+  doc.preamble.unshift(
+    buildTitlePageElement(docType, ctx),
+    { type: 'toc', title: tocTitle, depth: 3 },
+  );
 
   // NFR policy — strict mode emits blockers for missing NFR sections.
   if (ctx.coverage) {

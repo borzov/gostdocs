@@ -282,7 +282,7 @@ describe('runGenerate — integration', () => {
       const userGuide = result.documents.find((d) => d.docType === 'user-guide');
       expect(fs.existsSync(userGuide.outPath)).toBe(true);
       const md = fs.readFileSync(userGuide.outPath, 'utf8');
-      expect(md).toMatch(/^---\ntitle: /);
+      expect(md).toMatch(/^---\ntitle-meta: /);
       expect(md).toMatch(/Рекомендации по информационной безопасности/);
       expect(md).toMatch(/Главная/);
       expect(md).toMatch(/Рисунок 2\.1 — Главная/);

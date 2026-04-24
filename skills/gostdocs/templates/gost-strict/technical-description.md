@@ -125,45 +125,7 @@ IMPORTANT: Include ALL endpoints, not just CRUD. Include auth endpoints, health 
 
 ## Детальное описание эндпоинтов
 
-<!-- AGENT: For each endpoint, create a detailed description block.
-Example format:
-
-### POST /api/auth/login
-
-**Описание:** Аутентификация пользователя по логину и паролю.
-
-**Аутентификация:** Не требуется.
-
-**Тело запроса (JSON):**
-```json
-{
-  "email": "user@example.com",
-  "password": "string"
-}
-```
-
-**Успешный ответ (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "token": "eyJhbGciOiJIUzI1NiIs...",
-    "user": {
-      "id": 1,
-      "email": "user@example.com",
-      "name": "Иванов Иван",
-      "role": "admin"
-    }
-  }
-}
-```
-
-**Ошибки:**
-| Код | Описание |
-|-----|----------|
-| 400 | Некорректные входные данные |
-| 401 | Неверный логин или пароль |
--->
+<!-- GEN:endpoints-detail headingLevel="3" -->
 
 # Безопасность
 

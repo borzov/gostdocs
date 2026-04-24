@@ -44,6 +44,10 @@ Source: doc-researcher DATABASE -->
 <!-- AGENT: Endpoints table: | Метод | URL | Описание | Авторизация |
 Source: doc-researcher ROUTES + AUTH -->
 
+## Детальное описание эндпоинтов
+
+<!-- GEN:endpoints-detail headingLevel="3" -->
+
 # Архитектура
 
 <!-- GEN:mermaid source="architecture" title="Общая архитектура системы" -->

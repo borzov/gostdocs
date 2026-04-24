@@ -63,7 +63,7 @@ const table = baseElement.extend({
 
 const admonition = baseElement.extend({
   type: z.literal('admonition'),
-  kind: z.enum(['note', 'warning', 'danger', 'tip']),
+  kind: z.enum(['note', 'warning', 'danger', 'tip', 'todo']),
   text: z.string().min(1),
 });
 
@@ -131,8 +131,19 @@ const titlePage = baseElement.extend({
   year: z.string().nullable().optional(),
 });
 
+// Table-of-contents marker. Rendered as a raw OpenXML block containing a Word
+// TOC field. Pandoc's own `--toc` flag would force the TOC at the very top of
+// the DOCX, ahead of the title page; emitting it as an explicit preamble
+// element lets the generator place it precisely between the title page and
+// the body, which is the order mandated by ГОСТ 7.32 / РД 50-34.698-90.
+const tocElement = baseElement.extend({
+  type: z.literal('toc'),
+  title: z.string().default('Содержание'),
+  depth: z.number().int().min(1).max(6).default(3),
+});
+
 const element = z.discriminatedUnion('type', [
-  paragraph, figure, table, admonition, checklistResult, code, raw, pageDescription, titlePage,
+  paragraph, figure, table, admonition, checklistResult, code, raw, pageDescription, titlePage, tocElement,
 ]);
 
 /** @type {any} */

@@ -31,10 +31,10 @@ const STRINGS = {
       healthchecks:      'В docker-compose настроены healthcheck-директивы.',
       probes:            'Kubernetes использует livenessProbe / readinessProbe для контейнеров.',
       restart_policy:    'В docker-compose задана политика автоматического перезапуска контейнеров.',
-      db_read_replica:   'Обнаружены признаки реплик чтения базы данных — возможна горизонтальная масштабируемость чтения.',
+      db_read_replica:   'Настроены реплики чтения базы данных — чтение масштабируется горизонтально.',
     },
-    cache_intro:         'Обнаружены инструменты кеширования для снижения нагрузки на БД:',
-    lb_intro:            'Обнаружены балансировщики / reverse-proxy:',
+    cache_intro:         'Для снижения нагрузки на базу данных применяются инструменты кеширования:',
+    lb_intro:            'Балансировка нагрузки и reverse-proxy реализованы средствами:',
   },
   en: {
     horizontal_title: 'Horizontal scaling',
@@ -82,59 +82,54 @@ function flatten(map) {
   return out;
 }
 
-function buildHorizontal(scan, t) {
+function collectIntros(scanMap, introMap, fallbackList) {
   const intros = [];
-  const lines = [];
-  for (const [k, v] of Object.entries(scan.horizontal_scaling || {})) {
-    const intro = t.horizontal_intro[k];
-    if (intro) intros.push({ type: 'paragraph', text: intro });
-    lines.push({ type: 'paragraph', text: `${t.detected} ${v.join(', ')}.` });
+  for (const [k, v] of Object.entries(scanMap || {})) {
+    const intro = introMap[k];
+    if (intro) {
+      intros.push({ type: 'paragraph', text: intro });
+    } else if (Array.isArray(v) && v.length > 0) {
+      fallbackList.push({ type: 'paragraph', text: `${v.join(', ')}.` });
+    }
   }
+  return intros;
+}
+
+function buildHorizontal(scan, t) {
+  const tail = [];
+  const intros = collectIntros(scan.horizontal_scaling, t.horizontal_intro, tail);
   const caches = flatten(scan.caching);
   if (caches.length > 0) {
-    lines.push({ type: 'paragraph', text: `${t.cache_intro} ${caches.join(', ')}.` });
+    tail.push({ type: 'paragraph', text: `${t.cache_intro} ${caches.join(', ')}.` });
   }
   const lbs = flatten(scan.load_balancer);
   if (lbs.length > 0) {
-    lines.push({ type: 'paragraph', text: `${t.lb_intro} ${lbs.join(', ')}.` });
+    tail.push({ type: 'paragraph', text: `${t.lb_intro} ${lbs.join(', ')}.` });
   }
-  if (intros.length === 0 && lines.length === 0) {
+  if (intros.length === 0 && tail.length === 0) {
     return [{ type: 'paragraph', text: t.horizontal_default }];
   }
-  return [...intros, ...lines];
+  return [...intros, ...tail];
 }
 
 function buildVertical(scan, t) {
-  const intros = [];
-  const lines = [];
-  for (const [k, v] of Object.entries(scan.vertical_scaling || {})) {
-    const intro = t.vertical_intro[k];
-    if (intro) intros.push({ type: 'paragraph', text: intro });
-    lines.push({ type: 'paragraph', text: `${t.detected} ${v.join(', ')}.` });
-  }
-  if (intros.length === 0 && lines.length === 0) {
+  const tail = [];
+  const intros = collectIntros(scan.vertical_scaling, t.vertical_intro, tail);
+  if (intros.length === 0 && tail.length === 0) {
     return [{ type: 'paragraph', text: t.vertical_default }];
   }
-  return [...intros, ...lines];
+  return [...intros, ...tail];
 }
 
 function buildFault(scan, t) {
-  const intros = [];
-  const lines = [];
-  for (const [k, v] of Object.entries(scan.fault_tolerance || {})) {
-    const intro = t.fault_intro[k];
-    if (intro) intros.push({ type: 'paragraph', text: intro });
-    lines.push({ type: 'paragraph', text: `${t.detected} ${v.join(', ')}.` });
-  }
-  for (const [k, v] of Object.entries(scan.replication || {})) {
-    const intro = t.fault_intro[k];
-    if (intro) intros.push({ type: 'paragraph', text: intro });
-    lines.push({ type: 'paragraph', text: `${t.detected} ${v.join(', ')}.` });
-  }
-  if (intros.length === 0 && lines.length === 0) {
+  const tail = [];
+  const faultIntros = collectIntros(scan.fault_tolerance, t.fault_intro, tail);
+  const replicationIntros = collectIntros(scan.replication, t.fault_intro, tail);
+  const intros = [...faultIntros, ...replicationIntros];
+  if (intros.length === 0 && tail.length === 0) {
     return [{ type: 'paragraph', text: t.fault_default }];
   }
-  return [...intros, ...lines];
+  return [...intros, ...tail];
 }
 
 function buildTechScaling(scan, opts = {}) {

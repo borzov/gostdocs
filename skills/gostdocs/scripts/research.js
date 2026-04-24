@@ -144,6 +144,15 @@ async function runResearch(metaData, opts = {}) {
       JSON.stringify(coverageReport, null, 2),
       'utf8',
     );
+    // Persist the normalised OpenAPI document so the generator can render a
+    // detailed endpoints section without re-parsing the original spec.
+    if (openApiDoc) {
+      fs.writeFileSync(
+        path.join(root, 'openapi.json'),
+        JSON.stringify(openApiDoc, null, 2),
+        'utf8',
+      );
+    }
   }
 
   return coverageReport;

@@ -17,9 +17,11 @@
 const LANG_STRINGS = {
   ru: { fig: 'Рисунок', tbl: 'Таблица', checkYes: '[V]', checkNo: '[ ]', noteKinds: {
     note: 'Примечание', warning: 'Внимание', danger: 'Опасно', tip: 'Рекомендация',
+    todo: 'ТРЕБУЕТСЯ УТОЧНЕНИЕ',
   }},
   en: { fig: 'Figure', tbl: 'Table', checkYes: '[x]', checkNo: '[ ]', noteKinds: {
     note: 'Note', warning: 'Warning', danger: 'Danger', tip: 'Tip',
+    todo: 'ACTION REQUIRED',
   }},
 };
 
@@ -34,8 +36,15 @@ function stringifyValue(value) {
 }
 
 function emitFrontmatter(document) {
-  const fm = { title: document.title, lang: document.lang, ...document.frontmatter };
-  if (document.subtitle) fm.subtitle = document.subtitle;
+  // Use `title-meta` rather than `title` so pandoc writes the value into the
+  // DOCX core properties but does NOT emit a visible title block before the
+  // TOC. The visible title lives on the explicit title-page preamble element.
+  const fm = {
+    'title-meta': document.title,
+    lang: document.lang,
+    ...document.frontmatter,
+  };
+  if (document.subtitle) fm['subtitle-meta'] = document.subtitle;
   const lines = ['---'];
   for (const [k, v] of Object.entries(fm)) {
     lines.push(`${k}: ${stringifyValue(v)}`);
@@ -54,7 +63,8 @@ function renderTable(element, counters, lang) {
   if (element.caption) {
     counters.tables += 1;
     const seq = `${counters.topSection}.${counters.tables}`;
-    lines.push(`: ${LANG_STRINGS[lang].tbl} ${seq} — ${element.caption}`);
+    lines.push(`Table: ${LANG_STRINGS[lang].tbl} ${seq} — ${element.caption}`);
+    lines.push('');
   }
   lines.push(`| ${element.headers.map(escapeCell).join(' | ')} |`);
   lines.push(`|${element.headers.map(() => '---').join('|')}|`);
@@ -90,6 +100,32 @@ function renderAdmonition(element, lang) {
 function renderCode(element) {
   const lang = element.lang ? element.lang : '';
   return '```' + lang + '\n' + element.code + '\n```';
+}
+
+function renderToc(element) {
+  const title = element.title || 'Содержание';
+  const depth = Math.max(1, Math.min(6, element.depth || 3));
+  const instr = ` TOC \\o "1-${depth}" \\h \\z \\u `;
+  // Pandoc raw OpenXML block. On first open, Word honours w:updateFields and
+  // recomputes page numbers; the postprocess step sets that flag in settings.xml.
+  const xml = [
+    '```{=openxml}',
+    '<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">',
+    '  <w:pPr><w:pStyle w:val="TOCHeading"/></w:pPr>',
+    `  <w:r><w:t>${title}</w:t></w:r>`,
+    '</w:p>',
+    '<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">',
+    '  <w:r><w:fldChar w:fldCharType="begin" w:dirty="true"/></w:r>',
+    `  <w:r><w:instrText xml:space="preserve">${instr}</w:instrText></w:r>`,
+    '  <w:r><w:fldChar w:fldCharType="separate"/></w:r>',
+    '  <w:r><w:t>Оглавление обновится при открытии документа в Word.</w:t></w:r>',
+    '  <w:r><w:fldChar w:fldCharType="end"/></w:r>',
+    '</w:p>',
+    '```',
+    '',
+    '\\pagebreak',
+  ];
+  return xml.join('\n');
 }
 
 function renderTitlePage(element) {
@@ -156,6 +192,7 @@ function renderElement(element, counters, lang) {
     case 'raw':             return element.content;
     case 'page-description': return renderPageDescription(element, counters, lang);
     case 'title-page':      return renderTitlePage(element);
+    case 'toc':             return renderToc(element);
     default:                return '';
   }
 }
@@ -188,18 +225,27 @@ function renderSection(section, counters, lang, depth) {
  * @param {ReturnType<import('./doc-model').validate>} document
  * @returns {string}
  */
-function render(document) {
+function render(document, opts = {}) {
   const lang = selectLang(document);
   const counters = { topSection: 0, figures: 0, tables: 0 };
+  // Break after every top-level section so each H1 starts on its own page,
+  // matching the layout expected by ГОСТ. Disabled by callers that render
+  // isolated fragments (unit tests) via `pagebreakAfterTop: false`.
+  const pagebreakAfterTop = opts.pagebreakAfterTop !== false;
 
   const blocks = [emitFrontmatter(document), ''];
   for (const element of document.preamble || []) {
     blocks.push(renderElement(element, counters, lang));
     blocks.push('');
   }
-  for (const section of document.sections) {
-    blocks.push(renderSection(section, counters, lang, 0));
+  const sections = document.sections || [];
+  for (let i = 0; i < sections.length; i += 1) {
+    blocks.push(renderSection(sections[i], counters, lang, 0));
     blocks.push('');
+    if (pagebreakAfterTop && i < sections.length - 1) {
+      blocks.push('\\pagebreak');
+      blocks.push('');
+    }
   }
   return blocks.join('\n').replace(/\n{3,}/g, '\n\n').trim() + '\n';
 }

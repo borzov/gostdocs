@@ -507,6 +507,38 @@ def add_body_text_indent(doc: Document) -> None:
             ind.set(qn("w:firstLine"), indent_val)
 
 
+TODO_MARKERS: tuple[str, ...] = ("ТРЕБУЕТСЯ УТОЧНЕНИЕ", "ACTION REQUIRED")
+
+
+def highlight_todo_admonitions(doc: Document) -> int:
+    """Apply yellow paragraph shading to blockquotes created from ``todo`` admonitions.
+
+    The Doc-Model ``admonition`` renderer emits ``> **ТРЕБУЕТСЯ УТОЧНЕНИЕ.** …``
+    which pandoc converts to a paragraph with a bold lead-in run. We scan for
+    that prefix and shade the whole paragraph so the reader cannot miss a spot
+    that still needs manual attention.
+    """
+    touched = 0
+    for paragraph in doc.paragraphs:
+        text = paragraph.text.strip()
+        if not any(text.startswith(m) for m in TODO_MARKERS):
+            continue
+        ppr = paragraph._p.get_or_add_pPr()
+        # Remove any pre-existing shading so repeated runs do not stack.
+        for existing in ppr.findall(qn("w:shd")):
+            ppr.remove(existing)
+        shading = OxmlElement("w:shd")
+        shading.set(qn("w:val"), "clear")
+        shading.set(qn("w:color"), "auto")
+        shading.set(qn("w:fill"), "FFF2A8")
+        ppr.append(shading)
+        # Also make every run in the paragraph bold for extra visibility.
+        for run in paragraph.runs:
+            run.bold = True
+        touched += 1
+    return touched
+
+
 def main() -> None:
     if len(sys.argv) < 2:
         print(f"Usage: {sys.argv[0]} <input.docx> [--font 'Times New Roman']")
@@ -542,6 +574,11 @@ def main() -> None:
 
     # Replace emoji
     replace_emoji(doc)
+
+    # Highlight user-fillable TODO admonitions with yellow shading
+    todo_count = highlight_todo_admonitions(doc)
+    if todo_count:
+        print(f"[postprocess] highlighted {todo_count} TODO admonition(s)")
 
     # Force Word to refresh TOC page numbers on open
     force_update_fields_on_open(doc)

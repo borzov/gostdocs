@@ -29,21 +29,21 @@ const STRINGS = {
     data_default:   'Передача данных осуществляется по HTTPS; алгоритмы хранения секретов и шифрования на уровне хранилища подлежат уточнению при аудите инфраструктуры.',
     network_default:'Сетевая защита реализуется средствами reverse-proxy и фреймворка; конкретный набор мер подлежит уточнению при аудите конфигурации.',
     audit_default:  'Журнал событий безопасности должен быть настроен в соответствии с требованиями оператора системы; конкретные таблицы и механизмы подлежат уточнению при аудите кода.',
-    detected:       'Обнаруженные технологии и библиотеки:',
-    audit_tables:   'Обнаруженные миграции журнала:',
+    detected:       'Технологии и библиотеки:',
+    audit_tables:   'Миграции журнала:',
     tls_hints:      'Инфраструктурные индикаторы TLS:',
     auth_intro: {
-      jwt:       'Обнаружена JWT-библиотека; аутентификация по токену Bearer передаётся в заголовке Authorization.',
-      session:   'Обнаружен серверный механизм сессий; сессии хранятся на стороне сервера, клиент получает cookie.',
-      laravel:   'Обнаружены пакеты Laravel-экосистемы для аутентификации (Sanctum / Passport / JWT-Auth).',
-      framework: 'Обнаружены встроенные средства аутентификации фреймворка.',
-      oauth2:    'Обнаружены библиотеки OAuth2 / OpenID Connect для внешней аутентификации.',
-      ldap:      'Обнаружена интеграция с каталогом LDAP / Active Directory.',
-      sso:       'Обнаружены инструменты единого входа (SSO).',
+      jwt:       'Аутентификация выполняется по JWT-токену, передаваемому в заголовке Authorization как Bearer-токен.',
+      session:   'Используется серверный механизм сессий: идентификатор сессии хранится в cookie, данные — на стороне сервера.',
+      laravel:   'Применяются пакеты Laravel-экосистемы для аутентификации (Sanctum / Passport / JWT-Auth).',
+      framework: 'Используются встроенные средства аутентификации фреймворка.',
+      oauth2:    'Внешняя аутентификация строится на OAuth2 / OpenID Connect.',
+      ldap:      'Реализована интеграция с каталогом LDAP / Active Directory.',
+      sso:       'Поддерживается единый вход (SSO).',
     },
     authz_intro: {
-      rbac:    'Обнаружены RBAC-библиотеки: авторизация ролей / разрешений выполняется централизованно.',
-      policies:'Обнаружены пакеты политик / policy-based авторизации (CASL, Oso и подобные).',
+      rbac:    'Авторизация выполняется централизованно по модели ролей и разрешений (RBAC).',
+      policies:'Проверка прав основана на политиках (policy-based): CASL, Oso и аналогичные инструменты.',
     },
     network_intro: {
       helmet:        'Подключены HTTP-защитные заголовки (Helmet).',
@@ -54,9 +54,9 @@ const STRINGS = {
       secure_cookies:'Cookies сессий помечены флагами HttpOnly / Secure / SameSite.',
     },
     data_intro: {
-      tls:    'TLS / HTTPS обнаружен в конфигурации или зависимостях.',
-      secrets:'Обнаружены инструменты управления секретами (dotenv / Vault / SOPS и подобные).',
-      crypto: 'Обнаружены криптографические библиотеки для пользовательских данных.',
+      tls:    'Транспорт защищён TLS / HTTPS — соответствующие настройки присутствуют в конфигурации и зависимостях.',
+      secrets:'Секреты управляются специализированными инструментами (dotenv / Vault / SOPS или аналогичные).',
+      crypto: 'Для работы с чувствительными данными применяются криптографические библиотеки.',
     },
     password_intro: {
       bcrypt: 'Пароли хешируются алгоритмом bcrypt.',
@@ -65,8 +65,8 @@ const STRINGS = {
       pbkdf2: 'Пароли хешируются алгоритмом PBKDF2.',
     },
     audit_intro: {
-      table_name: 'Обнаружены миграции журнала действий / audit-log — операции изменения состояния фиксируются в отдельной таблице.',
-      model:      'Обнаружены пакеты журнала активности пользователей (activity-log / audit-log).',
+      table_name: 'Операции, изменяющие состояние системы, фиксируются в отдельной таблице журнала действий (audit-log).',
+      model:      'Для журнала активности пользователей используются специализированные пакеты (activity-log / audit-log).',
     },
   },
   en: {
@@ -126,14 +126,6 @@ function pickLang(lang) {
   return lang === 'en' ? 'en' : 'ru';
 }
 
-function formatHits(map) {
-  const out = [];
-  for (const [label, names] of Object.entries(map || {})) {
-    out.push(`${label}: ${names.join(', ')}`);
-  }
-  return out;
-}
-
 function slugify(input) {
   return String(input || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'section';
 }
@@ -148,85 +140,77 @@ function sectionOf(heading, level, elements) {
   };
 }
 
-function buildAuth(scan, t) {
-  const elements = [];
+function mergeIntroWithLibs(intro, libs) {
+  const clean = (libs || []).filter((x) => typeof x === 'string' && x.trim()).map((x) => x.trim());
+  if (clean.length === 0) return intro;
+  const trimmed = intro.replace(/\s*[.;]?\s*$/, '');
+  return `${trimmed} (${clean.join(', ')}).`;
+}
+
+function buildFromMap(scanMap, introMap, tail) {
   const intros = [];
-  for (const [k, v] of Object.entries(scan.authentication || {})) {
-    const intro = t.auth_intro[k];
-    if (intro) intros.push({ type: 'paragraph', text: intro });
-    elements.push({ type: 'paragraph', text: `${t.detected} ${v.join(', ')}.` });
+  for (const [k, v] of Object.entries(scanMap || {})) {
+    const intro = introMap[k];
+    if (intro) {
+      intros.push({ type: 'paragraph', text: mergeIntroWithLibs(intro, v) });
+    } else if (Array.isArray(v) && v.length > 0) {
+      tail.push({ type: 'paragraph', text: `${v.join(', ')}.` });
+    }
   }
-  for (const [k, v] of Object.entries(scan.password_hashing || {})) {
-    const intro = t.password_intro[k];
-    if (intro) intros.push({ type: 'paragraph', text: intro });
-    elements.push({ type: 'paragraph', text: `${t.detected} ${v.join(', ')}.` });
-  }
-  if (intros.length === 0 && elements.length === 0) {
+  return intros;
+}
+
+function buildAuth(scan, t) {
+  const tail = [];
+  const authIntros = buildFromMap(scan.authentication, t.auth_intro, tail);
+  const pwIntros = buildFromMap(scan.password_hashing, t.password_intro, tail);
+  const intros = [...authIntros, ...pwIntros];
+  if (intros.length === 0 && tail.length === 0) {
     return [{ type: 'paragraph', text: t.auth_default }];
   }
-  return [...intros, ...elements];
+  return [...intros, ...tail];
 }
 
 function buildAuthz(scan, t) {
-  const intros = [];
-  const lines = [];
-  for (const [k, v] of Object.entries(scan.authorization || {})) {
-    const intro = t.authz_intro[k];
-    if (intro) intros.push({ type: 'paragraph', text: intro });
-    lines.push({ type: 'paragraph', text: `${t.detected} ${v.join(', ')}.` });
-  }
-  if (intros.length === 0 && lines.length === 0) {
+  const tail = [];
+  const intros = buildFromMap(scan.authorization, t.authz_intro, tail);
+  if (intros.length === 0 && tail.length === 0) {
     return [{ type: 'paragraph', text: t.authz_default }];
   }
-  return [...intros, ...lines];
+  return [...intros, ...tail];
 }
 
 function buildDataProtection(scan, t) {
-  const intros = [];
-  const lines = [];
-  for (const [k, v] of Object.entries(scan.data_protection || {})) {
-    const intro = t.data_intro[k];
-    if (intro) intros.push({ type: 'paragraph', text: intro });
-    lines.push({ type: 'paragraph', text: `${t.detected} ${v.join(', ')}.` });
-  }
+  const tail = [];
+  const intros = buildFromMap(scan.data_protection, t.data_intro, tail);
   if ((scan.tls_hints || []).length > 0) {
-    lines.push({ type: 'paragraph', text: `${t.tls_hints} ${scan.tls_hints.join(', ')}.` });
+    tail.push({ type: 'paragraph', text: `${t.tls_hints} ${scan.tls_hints.join(', ')}.` });
   }
-  if (intros.length === 0 && lines.length === 0) {
+  if (intros.length === 0 && tail.length === 0) {
     return [{ type: 'paragraph', text: t.data_default }];
   }
-  return [...intros, ...lines];
+  return [...intros, ...tail];
 }
 
 function buildNetwork(scan, t) {
-  const intros = [];
-  const lines = [];
-  for (const [k, v] of Object.entries(scan.network_security || {})) {
-    const intro = t.network_intro[k];
-    if (intro) intros.push({ type: 'paragraph', text: intro });
-    lines.push({ type: 'paragraph', text: `${t.detected} ${v.join(', ')}.` });
-  }
-  if (intros.length === 0 && lines.length === 0) {
+  const tail = [];
+  const intros = buildFromMap(scan.network_security, t.network_intro, tail);
+  if (intros.length === 0 && tail.length === 0) {
     return [{ type: 'paragraph', text: t.network_default }];
   }
-  return [...intros, ...lines];
+  return [...intros, ...tail];
 }
 
 function buildAudit(scan, t) {
-  const intros = [];
-  const lines = [];
-  for (const [k, v] of Object.entries(scan.auditing || {})) {
-    const intro = t.audit_intro[k];
-    if (intro) intros.push({ type: 'paragraph', text: intro });
-    lines.push({ type: 'paragraph', text: `${t.detected} ${v.join(', ')}.` });
-  }
+  const tail = [];
+  const intros = buildFromMap(scan.auditing, t.audit_intro, tail);
   if ((scan.audit_tables || []).length > 0) {
-    lines.push({ type: 'paragraph', text: `${t.audit_tables} ${scan.audit_tables.slice(0, 5).join('; ')}.` });
+    tail.push({ type: 'paragraph', text: `${t.audit_tables} ${scan.audit_tables.slice(0, 5).join('; ')}.` });
   }
-  if (intros.length === 0 && lines.length === 0) {
+  if (intros.length === 0 && tail.length === 0) {
     return [{ type: 'paragraph', text: t.audit_default }];
   }
-  return [...intros, ...lines];
+  return [...intros, ...tail];
 }
 
 /**
