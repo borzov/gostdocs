@@ -63,14 +63,24 @@ const PATTERNS = [
     id: 'ascii-h3',
     severity: 'info',
     label: 'ASCII-заголовок уровня H3 в русском документе',
-    regex: /^###\s+([A-Za-z][A-Za-z0-9\s\-_]{2,})$/,
+    // Two shapes count as a leaked vision-agent title:
+    //   1. English phrase — two or more capitalised words ("Event Detail")
+    //   2. Kebab-case slug — words joined by hyphens ("event-detail",
+    //      "admin-queue", "verify-email")
+    // Snake_case identifiers are treated as legitimate (DB table names
+    // emitted by GEN:db-schema: `### action_log`, `### events`).
+    regex: /^###\s+(?:[A-Z][A-Za-z]{2,}\s+[A-Z][A-Za-z]{2,}|[a-z][a-z0-9]+-[a-z0-9][a-z0-9-]+)\b/,
     hint: 'Vision-агент вернул английское значение `title`; расширьте словарь `title-normalizer.fallbackTitleFromId` или поправьте prompt агента.',
   },
   {
     id: 'short-h2',
     severity: 'info',
     label: 'Подозрительно короткий заголовок (менее трёх слов)',
-    regex: /^(##|###)\s+(\S+)$/,
+    // Headings with exactly one non-whitespace token. We deliberately exclude
+    // snake_case / kebab-case identifiers (DB table names from
+    // GEN:db-schema) and Cyrillic single-words (many legitimate Russian
+    // subsection headings are one word — "Введение", "Архитектура").
+    regex: /^(##|###)\s+(?![A-Za-z0-9_-]+$)(?![А-ЯЁа-яё\d]+$)(\S+)$/,
     hint: 'Проверьте — возможно, заголовок попал из page.id. Дополните словарь title-normalizer или заголовок в шаблоне.',
   },
 ];
