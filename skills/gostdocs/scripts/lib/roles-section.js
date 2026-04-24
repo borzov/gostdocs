@@ -121,28 +121,77 @@ function parseRoleDiscoveryTable(researchMd) {
  *                            (returned under `{ kind: 'section', section }`
  *                            by the generate.js expander).
  */
+function findInRoleModel(roleModel, slug) {
+  if (!Array.isArray(roleModel) || !slug) return null;
+  const target = String(slug).toLowerCase();
+  return roleModel.find((e) => e && e.role && String(e.role).toLowerCase() === target) || null;
+}
+
+function bulletList(items) {
+  const lines = items.filter(Boolean).map((text) => `- ${String(text).replace(/\n+/g, ' ').trim()}`);
+  return { type: 'raw', format: 'markdown', content: lines.join('\n') + '\n' };
+}
+
+/**
+ * @param {{ auth?: { roles?: Array<{ role: string }> } }} meta
+ * @param {string} researchMd
+ * @param {{ lang?: 'ru'|'en', headingLevel?: number,
+ *            roleModel?: Array<object>|null }} [opts]
+ */
 function buildRolesSections(meta, researchMd, opts = {}) {
   const lang = opts.lang === 'en' ? 'en' : 'ru';
   const level = Number(opts.headingLevel) > 0 ? Number(opts.headingLevel) : 3;
   const roles = (meta && meta.auth && Array.isArray(meta.auth.roles)) ? meta.auth.roles : [];
   const discovery = parseRoleDiscoveryTable(researchMd);
   const strings = STRINGS[lang];
+  const roleModel = Array.isArray(opts.roleModel) ? opts.roleModel : null;
 
   const sections = [];
   for (const roleCfg of roles) {
     const slug = roleCfg && roleCfg.role ? String(roleCfg.role) : null;
     if (!slug) continue;
-    // Skip synthetic "guest-only" that some templates use as an internal
-    // pseudo-role for login/register pages — it is not a real user role.
     if (slug === 'guest-only') continue;
     const heading = labelFor(slug, lang);
     const discovered = discovery.get(slug.toLowerCase());
+    const structured = findInRoleModel(roleModel, slug);
     const elements = [];
-    if (discovered && discovered.description) {
-      elements.push({ type: 'paragraph', text: discovered.description });
+
+    if (structured) {
+      // Structured path: agent emitted role_model with activities / functions /
+      // limits arrays. We render each list as a proper bullet list instead of
+      // the old "placeholder paragraph" format, and mark empty lists with a
+      // TODO admonition so the gap is visible.
+      if (structured.label) {
+        elements.push({ type: 'paragraph', text: `**${structured.label}.**` });
+      } else if (discovered && discovered.description) {
+        elements.push({ type: 'paragraph', text: discovered.description });
+      }
+      const triples = [
+        ['activities', strings.activities_heading, strings.placeholder_activities],
+        ['functions',  strings.functions_heading,  strings.placeholder_functions],
+      ];
+      for (const [key, title, placeholder] of triples) {
+        const items = Array.isArray(structured[key]) ? structured[key].filter(Boolean) : [];
+        elements.push({ type: 'paragraph', text: `**${title}:**` });
+        if (items.length === 0) {
+          elements.push({ type: 'admonition', kind: 'todo', text: placeholder.replace(/^_\(|\)_$/g, '') });
+        } else {
+          elements.push(bulletList(items));
+        }
+      }
+      if (Array.isArray(structured.limits) && structured.limits.length > 0) {
+        elements.push({ type: 'paragraph', text: `**${lang === 'en' ? 'Role limits' : 'Ограничения роли'}:**` });
+        elements.push(bulletList(structured.limits));
+      }
+    } else {
+      // Fallback: legacy discovery-from-markdown path.
+      if (discovered && discovered.description) {
+        elements.push({ type: 'paragraph', text: discovered.description });
+      }
+      elements.push({ type: 'paragraph', text: `**${strings.activities_heading}.** ${strings.placeholder_activities}` });
+      elements.push({ type: 'paragraph', text: `**${strings.functions_heading}.** ${strings.placeholder_functions}` });
     }
-    elements.push({ type: 'paragraph', text: `**${strings.activities_heading}.** ${strings.placeholder_activities}` });
-    elements.push({ type: 'paragraph', text: `**${strings.functions_heading}.** ${strings.placeholder_functions}` });
+
     sections.push({
       heading,
       level,

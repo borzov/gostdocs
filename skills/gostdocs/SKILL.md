@@ -124,6 +124,64 @@ openapi-adapter, role-discovery, ...) MUST:
    orchestrator reads the full content from disk, not from the agent
    message — this keeps the parent context window small.
 
+#### Optional structured facts (agent-specific)
+
+The summary may include additional fields that downstream expanders consume
+to replace template fallbacks with concrete prose. Fill them whenever the
+evidence is already in hand — leaving a field out is fine and the generator
+falls back gracefully. Schemas are validated by `lib/research-result.js`.
+
+**role-discovery** — emit `role_model` and `rbac_matrix`:
+```json
+{
+  "role_model": [
+    {
+      "role": "user",
+      "label": "Зарегистрированный пользователь",
+      "activities": ["участие в мероприятиях", "получение сертификатов"],
+      "functions": ["регистрация", "просмотр программы"],
+      "limits": ["не может редактировать чужие регистрации"]
+    }
+  ],
+  "rbac_matrix": {
+    "domains": ["Users", "Events", "Reports"],
+    "rows": [
+      { "role": "admin", "cells": { "Users": "CRUD", "Events": "CRUD", "Reports": "read" } },
+      { "role": "user",  "cells": { "Users": "read", "Events": "read", "Reports": "—"    } }
+    ]
+  }
+}
+```
+The cells are free-form labels — the renderer does not interpret them.
+
+**doc-researcher / spec-reader** — emit `security_facts` to drive the
+tech-description security chapter:
+```json
+{
+  "security_facts": {
+    "auth":            { "scheme": "JWT (Bearer)", "parameters": { "access_ttl": "1h", "refresh_ttl": "30d" } },
+    "password_policy": { "algorithm": "bcrypt", "cost": 12, "min_length": 10 },
+    "rbac":            { "model": "RBAC", "roles": ["admin", "user"], "permissions_count": 47 },
+    "audit_log":       { "enabled": true,  "tables": ["audit_log"], "retention": "90 days" },
+    "transport":       { "tls_version": "1.2+", "hsts": true, "security_headers": ["HSTS", "X-Content-Type-Options"] }
+  }
+}
+```
+
+**project-introspect** — emit `stack_manifest` when the repo is a monorepo
+with distinct backend and frontend manifests:
+```json
+{
+  "stack_manifest": {
+    "backend_stack":  { "language": "PHP",        "framework": "Yii2",  "version": "2.0.50", "manifest": "backend/composer.json" },
+    "frontend_stack": { "language": "TypeScript", "framework": "Vue 3", "version": "3.4",    "manifest": "frontend/package.json" },
+    "containers":     [{ "name": "postgres", "image": "postgres:14-alpine", "version": "14" }]
+  }
+}
+```
+If any of those fields are missing, the generator renders the generic
+fallback and records a warning in `ctx.warnings[]`.
+
 ### Orchestrator
 
 `scripts/research.js` aggregates every `*.summary.json`, applies the NFR
@@ -686,6 +744,8 @@ node scripts/generate.js --config docs/meta.yaml --lang ru,en
 | `GEN:mermaid source="dataflow"` | `lib/diagrams.buildDataFlowMermaid` | Auto-synthesised `graph LR` from action → form/API → server → ORM → storage (first 5 tables) |
 | `GEN:db-schema scope="all" headingLevel="3"` | `lib/schema-model.buildMarkdown` | Markdown tables per DB table with FKs + indexes |
 | `GEN:endpoints-detail headingLevel="3"` | `adapters/openapi.buildMarkdown` | Per-endpoint documentation (parameters, request body, responses) grouped by tag. Reads `_research/openapi.json` — silent no-op if the research step produced no OpenAPI document |
+| `GEN:role-activities role="user"` | `lib/role-model-render.buildRoleActivities` | Per-role activities / functions / limits rendered as bullet lists from the `role_model` array emitted by the role-discovery subagent. Missing roles or empty lists become visible TODO admonitions |
+| `GEN:rbac-matrix` | `lib/role-model-render.buildRbacMatrix` | Role × Permission-domain table built from the `rbac_matrix` object in role-discovery summary. Missing data produces a single TODO admonition instead of an empty table |
 | `GEN:journey role="user"` | `lib/journey-render.renderJourneysSection` | Numbered step sequences with figures per journeys.yaml |
 | `GEN:security-section` | `lib/security-recommendations.buildSection` | Full security recommendations section scoped to docType |
 | `GEN:page-description role="user" headingLevel="3"` | `inspection-store` + `lib/page-narrative.buildPageNarrative` | One sub-section per capture: figure + Russian narrative paragraph derived from inspection JSON (`component_kind_notes` + structured action/filter/table/modal sentences). `headingLevel` defaults to **2** so a directive nested under `# Описание операций` renders as `## Page` → numbering `4.1` (not `4.0.1`). The legacy English checklist (`[V] heading: ...`) is no longer emitted into end-user docs. |

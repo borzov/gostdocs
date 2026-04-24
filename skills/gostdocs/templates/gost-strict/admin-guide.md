@@ -242,17 +242,13 @@ For each operation provide step-by-step instructions. -->
 
 ## Роли и права доступа
 
-<!-- AGENT: Create a permission matrix table:
-Rows = operations/features, Columns = roles.
-Mark with ✓ (allowed) or — (denied).
+<!-- GEN:rbac-matrix -->
+
+<!-- AGENT: If the RBAC matrix above is empty (no rbac_matrix emitted by
+role-discovery), describe the access control model in prose instead.
 Source: doc-researcher AUTH (role definitions, guards, middleware) -->
 
-| Функция | Пользователь | Администратор |
-|---------|:------------:|:-------------:|
-| Просмотр данных | ✓ | ✓ |
-| Редактирование данных | ✓ | ✓ |
-| Управление пользователями | — | ✓ |
-| Настройка системы | — | ✓ |
+<!-- GEN:roles-section headingLevel="3" -->
 
 ## Создание учётной записи
 

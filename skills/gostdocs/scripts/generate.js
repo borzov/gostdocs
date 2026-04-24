@@ -52,6 +52,7 @@ const projectIntrospect = require('./lib/project-introspect');
 const mermaidAdapter = require('./adapters/mermaid');
 const openapiAdapter = require('./adapters/openapi');
 const diagramsLib = require('./lib/diagrams');
+const roleModelRender = require('./lib/role-model-render');
 const bootstrapExports = require('./bootstrap');
 
 const DEFAULT_TEMPLATE_ROOT = path.join(bootstrapExports.SKILL_DIR, 'templates');
@@ -336,6 +337,33 @@ function buildExpanders(ctx) {
       return { type: 'raw', format: 'markdown', content: md };
     },
 
+    'role-activities': (attrs) => {
+      const roleModel = (ctx.coverage && ctx.coverage.aggregate && ctx.coverage.aggregate.role_model)
+        || (ctx.coverage && ctx.coverage.role_model)
+        || null;
+      if (!attrs.role) {
+        pushWarning(ctx, 'role-activities', 'GEN:role-activities missing required "role" attribute');
+        return null;
+      }
+      return roleModelRender.buildRoleActivities(roleModel, { role: attrs.role, lang: ctx.lang });
+    },
+
+    'rbac-matrix': () => {
+      const matrix = (ctx.coverage && ctx.coverage.aggregate && ctx.coverage.aggregate.rbac_matrix)
+        || (ctx.coverage && ctx.coverage.rbac_matrix)
+        || null;
+      const roleModel = (ctx.coverage && ctx.coverage.aggregate && ctx.coverage.aggregate.role_model)
+        || (ctx.coverage && ctx.coverage.role_model)
+        || null;
+      const roleLabels = {};
+      if (Array.isArray(roleModel)) {
+        for (const entry of roleModel) {
+          if (entry && entry.role && entry.label) roleLabels[entry.role] = entry.label;
+        }
+      }
+      return roleModelRender.buildRbacMatrix(matrix, { lang: ctx.lang, roleLabels });
+    },
+
     'security-section': () => {
       const docType = ctx.docType;
       if (!docType || !security.VALID_DOC_TYPES.includes(docType)) {
@@ -483,9 +511,16 @@ function buildExpanders(ctx) {
       const headingLevel = Number(attrs.headingLevel) > 0 ? Number(attrs.headingLevel) : 2;
       const scan = ctx.securityScan || securityScan.scanSecurity(ctx.projectPath);
       ctx.securityScan = scan;
+      // When research subagents emitted concrete `security_facts`, pass
+      // them through so the expander renders specific prose (JWT scheme,
+      // bcrypt cost, TLS version) instead of the generic framework blurb.
+      const facts = (ctx.coverage && ctx.coverage.aggregate && ctx.coverage.aggregate.security_facts)
+        || (ctx.coverage && ctx.coverage.security_facts)
+        || null;
       const sections = techSecurityExpander.buildTechSecurity(scan, {
         lang: ctx.lang,
         headingLevel,
+        facts,
       });
       return sections.map((s) => ({ kind: 'section', section: s }));
     },
@@ -624,9 +659,16 @@ function buildExpanders(ctx) {
     'roles-section': (attrs) => {
       const headingLevel = Number(attrs.headingLevel) > 0 ? Number(attrs.headingLevel) : 3;
       const researchMd = (ctx.researchMd && ctx.researchMd['role-discovery']) || '';
+      // Prefer the structured role_model (activities/functions/limits arrays)
+      // produced by the role-discovery subagent; fall back to parsing the
+      // free-form research markdown when the agent did not emit it.
+      const roleModel = (ctx.coverage && ctx.coverage.aggregate && ctx.coverage.aggregate.role_model)
+        || (ctx.coverage && ctx.coverage.role_model)
+        || null;
       const sections = rolesSection.buildRolesSections(ctx.meta, researchMd, {
         lang: ctx.lang,
         headingLevel,
+        roleModel,
       });
       if (sections.length === 0) {
         pushWarning(ctx, 'roles-section', 'no roles defined in meta.auth.roles; skipping per-role subsections');

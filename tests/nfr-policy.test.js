@@ -28,6 +28,23 @@ describe('findNfrSections', () => {
     const nfr = findNfrSections(agg);
     expect(nfr.map((s) => s.section)).toEqual(['NFR', 'PERFORMANCE']);
   });
+
+  test('lifts sections out of nested coverage.json shape', () => {
+    // research.js writes `{ aggregate: { sections: [...] } }` to disk; the
+    // generator forwards the raw coverage object here without un-nesting.
+    const coverage = {
+      gost_mode: 'strict',
+      aggregate: {
+        sections: [
+          { section: 'NFR', found: false },
+          { section: 'PERFORMANCE', found: true },
+          { section: 'FEATURES', found: true },
+        ],
+      },
+    };
+    const nfr = findNfrSections(coverage);
+    expect(nfr.map((s) => s.section)).toEqual(['NFR', 'PERFORMANCE']);
+  });
 });
 
 describe('applyNfrPolicy — strict mode', () => {

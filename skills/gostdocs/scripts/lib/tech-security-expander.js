@@ -160,7 +160,53 @@ function buildFromMap(scanMap, introMap, tail) {
   return intros;
 }
 
-function buildAuth(scan, t) {
+/**
+ * When the research layer provides a concrete `security_facts.auth` block,
+ * emit a factual paragraph with the actual scheme and parameters instead of
+ * the generic "реализовано средствами фреймворка" placeholder. The caller
+ * still passes the scanner result so we can append detected library names
+ * (e.g. jsonwebtoken, bcryptjs) after the main statement.
+ */
+function buildAuthFacts(facts, scan, t) {
+  if (!facts) return null;
+  const paras = [];
+  if (facts.auth && (facts.auth.scheme || facts.auth.notes)) {
+    const parts = [];
+    if (facts.auth.scheme) parts.push(`Схема аутентификации: ${facts.auth.scheme}`);
+    if (facts.auth.notes) parts.push(facts.auth.notes);
+    const params = facts.auth.parameters || {};
+    const paramPairs = Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== '');
+    if (paramPairs.length > 0) {
+      parts.push(`параметры: ${paramPairs.map(([k, v]) => `${k}=${v}`).join(', ')}`);
+    }
+    paras.push({ type: 'paragraph', text: `${parts.join('. ')}.` });
+  }
+  if (facts.password_policy) {
+    const pp = facts.password_policy;
+    const parts = [];
+    if (pp.algorithm) parts.push(`Пароли хешируются алгоритмом ${pp.algorithm}`);
+    if (pp.cost !== undefined) parts.push(`cost factor ${pp.cost}`);
+    if (pp.min_length) parts.push(`минимальная длина пароля — ${pp.min_length} символов`);
+    if (Array.isArray(pp.requires) && pp.requires.length > 0) {
+      parts.push(`обязательные категории символов: ${pp.requires.join(', ')}`);
+    }
+    if (parts.length > 0) {
+      paras.push({ type: 'paragraph', text: `${parts.join('. ')}.` });
+    }
+  }
+  // Detected libraries enrich the facts paragraph — kept in buildFromMap
+  // for consistency with the other sections.
+  const tail = [];
+  buildFromMap(scan.authentication, t.auth_intro, tail);
+  if (tail.length > 0) {
+    paras.push(...tail.slice(0, 2));
+  }
+  return paras.length > 0 ? paras : null;
+}
+
+function buildAuth(scan, t, facts) {
+  const factsParas = buildAuthFacts(facts, scan, t);
+  if (factsParas) return factsParas;
   const tail = [];
   const authIntros = buildFromMap(scan.authentication, t.auth_intro, tail);
   const pwIntros = buildFromMap(scan.password_hashing, t.password_intro, tail);
@@ -171,7 +217,21 @@ function buildAuth(scan, t) {
   return [...intros, ...tail];
 }
 
-function buildAuthz(scan, t) {
+function buildAuthz(scan, t, facts) {
+  const paras = [];
+  if (facts && facts.rbac && (facts.rbac.model || (facts.rbac.roles && facts.rbac.roles.length > 0))) {
+    const parts = [];
+    if (facts.rbac.model) parts.push(`Авторизация построена по модели ${facts.rbac.model}`);
+    if (Array.isArray(facts.rbac.roles) && facts.rbac.roles.length > 0) {
+      parts.push(`в системе заведены роли: ${facts.rbac.roles.join(', ')}`);
+    }
+    if (facts.rbac.permissions_count) {
+      parts.push(`общее количество разрешений — ${facts.rbac.permissions_count}`);
+    }
+    if (facts.rbac.notes) parts.push(facts.rbac.notes);
+    paras.push({ type: 'paragraph', text: `${parts.join('. ')}.` });
+  }
+  if (paras.length > 0) return paras;
   const tail = [];
   const intros = buildFromMap(scan.authorization, t.authz_intro, tail);
   if (intros.length === 0 && tail.length === 0) {
@@ -180,7 +240,21 @@ function buildAuthz(scan, t) {
   return [...intros, ...tail];
 }
 
-function buildDataProtection(scan, t) {
+function buildDataProtection(scan, t, facts) {
+  const paras = [];
+  if (facts && facts.transport && (facts.transport.tls_version || facts.transport.security_headers)) {
+    const parts = [];
+    if (facts.transport.tls_version) {
+      parts.push(`Передача данных защищена протоколом TLS версии ${facts.transport.tls_version}`);
+    }
+    if (facts.transport.hsts) parts.push('включён HSTS (Strict-Transport-Security)');
+    if (Array.isArray(facts.transport.security_headers) && facts.transport.security_headers.length > 0) {
+      parts.push(`дополнительно настроены HTTP-заголовки безопасности: ${facts.transport.security_headers.join(', ')}`);
+    }
+    if (facts.transport.notes) parts.push(facts.transport.notes);
+    if (parts.length > 0) paras.push({ type: 'paragraph', text: `${parts.join('. ')}.` });
+  }
+  if (paras.length > 0) return paras;
   const tail = [];
   const intros = buildFromMap(scan.data_protection, t.data_intro, tail);
   if ((scan.tls_hints || []).length > 0) {
@@ -201,7 +275,26 @@ function buildNetwork(scan, t) {
   return [...intros, ...tail];
 }
 
-function buildAudit(scan, t) {
+function buildAudit(scan, t, facts) {
+  const paras = [];
+  if (facts && facts.audit_log) {
+    const al = facts.audit_log;
+    const parts = [];
+    if (al.enabled === false) {
+      parts.push('Централизованный журнал событий безопасности на момент обследования не развёрнут');
+    } else if (al.enabled === true || (al.tables || []).length > 0) {
+      parts.push('Журнал событий безопасности ведётся в базе данных');
+    }
+    if (Array.isArray(al.tables) && al.tables.length > 0) {
+      parts.push(`записи хранятся в таблицах: ${al.tables.slice(0, 6).join(', ')}`);
+    }
+    if (al.retention) parts.push(`срок хранения журнала — ${al.retention}`);
+    if (al.notes) parts.push(al.notes);
+    if (parts.length > 0) {
+      paras.push({ type: 'paragraph', text: `${parts.join('. ')}.` });
+    }
+  }
+  if (paras.length > 0) return paras;
   const tail = [];
   const intros = buildFromMap(scan.auditing, t.audit_intro, tail);
   if ((scan.audit_tables || []).length > 0) {
@@ -224,12 +317,13 @@ function buildAudit(scan, t) {
 function buildTechSecurity(scan, opts = {}) {
   const t = STRINGS[pickLang(opts.lang)];
   const level = Number(opts.headingLevel) > 0 ? Number(opts.headingLevel) : 2;
+  const facts = opts.facts || null;
   return [
-    sectionOf(t.auth_title,    level, buildAuth(scan,            t)),
-    sectionOf(t.authz_title,   level, buildAuthz(scan,           t)),
-    sectionOf(t.data_title,    level, buildDataProtection(scan,  t)),
-    sectionOf(t.network_title, level, buildNetwork(scan,         t)),
-    sectionOf(t.audit_title,   level, buildAudit(scan,           t)),
+    sectionOf(t.auth_title,    level, buildAuth(scan,           t, facts)),
+    sectionOf(t.authz_title,   level, buildAuthz(scan,          t, facts)),
+    sectionOf(t.data_title,    level, buildDataProtection(scan, t, facts)),
+    sectionOf(t.network_title, level, buildNetwork(scan,        t)),
+    sectionOf(t.audit_title,   level, buildAudit(scan,          t, facts)),
   ];
 }
 

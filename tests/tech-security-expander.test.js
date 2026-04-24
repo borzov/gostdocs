@@ -94,4 +94,49 @@ describe('buildTechSecurity', () => {
     ]);
     expect(sections[0].elements[0].text).toMatch(/to be confirmed/);
   });
+
+  test('security_facts.auth overrides the default narrative with concrete data', () => {
+    const sections = buildTechSecurity(EMPTY_SCAN, {
+      lang: 'ru',
+      facts: {
+        auth: {
+          scheme: 'JWT (Bearer)',
+          notes: 'access 1h + refresh 30d',
+          parameters: { access_ttl: '1h', refresh_ttl: '30d' },
+        },
+        password_policy: { algorithm: 'bcrypt', cost: 12, min_length: 10 },
+      },
+    });
+    const auth = sections.find((s) => s.heading === 'Аутентификация');
+    const text = auth.elements.map((e) => e.text).join(' ');
+    expect(text).toMatch(/JWT \(Bearer\)/);
+    expect(text).toMatch(/access_ttl=1h/);
+    expect(text).toMatch(/bcrypt/);
+    expect(text).toMatch(/cost factor 12/);
+    expect(text).not.toMatch(/реализована средствами фреймворка приложения: при входе/);
+  });
+
+  test('security_facts.rbac overrides authz default with concrete role list', () => {
+    const sections = buildTechSecurity(EMPTY_SCAN, {
+      lang: 'ru',
+      facts: {
+        rbac: { model: 'RBAC', roles: ['admin', 'user', 'guest'], permissions_count: 47 },
+      },
+    });
+    const authz = sections.find((s) => s.heading === 'Авторизация');
+    const text = authz.elements.map((e) => e.text).join(' ');
+    expect(text).toMatch(/RBAC/);
+    expect(text).toMatch(/admin, user, guest/);
+    expect(text).toMatch(/разрешений — 47/);
+  });
+
+  test('security_facts.audit_log with disabled flag emits a factual "not deployed" line', () => {
+    const sections = buildTechSecurity(EMPTY_SCAN, {
+      lang: 'ru',
+      facts: { audit_log: { enabled: false } },
+    });
+    const audit = sections.find((s) => s.heading === 'Журналирование событий безопасности');
+    const text = audit.elements.map((e) => e.text).join(' ');
+    expect(text).toMatch(/не развёрнут/);
+  });
 });

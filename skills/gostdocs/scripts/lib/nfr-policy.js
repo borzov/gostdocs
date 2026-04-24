@@ -33,12 +33,32 @@ function isNfrSection(key) {
 }
 
 /**
+ * Extract the flat sections list regardless of where the caller put it.
+ *
+ * Historically `research.js` writes `coverage.json` as
+ * `{ aggregate: { sections: [...] } }`, while unit tests often pass the
+ * bare `aggregate` object directly. `generate.js` forwards the raw coverage
+ * report here, so `.sections` needs to be reachable from both shapes —
+ * lifting it explicitly keeps the policy decider agnostic to that choice.
+ *
+ * @param {object|null|undefined} aggregate
+ * @returns {Array<{ section: string, found: boolean }>}
+ */
+function liftSections(aggregate) {
+  if (!aggregate || typeof aggregate !== 'object') return [];
+  if (Array.isArray(aggregate.sections)) return aggregate.sections;
+  if (aggregate.aggregate && Array.isArray(aggregate.aggregate.sections)) {
+    return aggregate.aggregate.sections;
+  }
+  return [];
+}
+
+/**
  * @param {{ sections: Array<{ section: string, found: boolean }> }} aggregate
  * @returns {Array<{ section: string, found: boolean }>}
  */
 function findNfrSections(aggregate) {
-  if (!aggregate || !Array.isArray(aggregate.sections)) return [];
-  return aggregate.sections.filter((s) => isNfrSection(s.section));
+  return liftSections(aggregate).filter((s) => s && isNfrSection(s.section));
 }
 
 /**
