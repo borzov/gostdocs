@@ -1,6 +1,9 @@
 'use strict';
 
-const { detectErrorPage } = require('../skills/gostdocs/scripts/lib/error-page-detector');
+const {
+  detectErrorPage,
+  detectDomErrorState,
+} = require('../skills/gostdocs/scripts/lib/error-page-detector');
 
 const resp = (status) => ({ status: () => status });
 
@@ -100,5 +103,46 @@ describe('detectErrorPage', () => {
     });
     expect(r).not.toBeNull();
     expect(r.reason).toMatch(/title-pattern/);
+  });
+});
+
+describe('detectDomErrorState', () => {
+  function mockPage(handles) {
+    return {
+      $: async (selector) => (Object.prototype.hasOwnProperty.call(handles, selector)
+        ? { dispose: async () => {} }
+        : null),
+    };
+  }
+
+  test('returns null when no error markers are present', async () => {
+    const page = mockPage({});
+    expect(await detectDomErrorState(page)).toBeNull();
+  });
+
+  test('reports the first matching selector', async () => {
+    const page = mockPage({ '[data-testid="empty-state"]': true });
+    const r = await detectDomErrorState(page);
+    expect(r).not.toBeNull();
+    expect(r.selector).toBe('[data-testid="empty-state"]');
+    expect(r.reason).toMatch(/dom-marker/);
+  });
+
+  test('tolerates unsupported selector syntax', async () => {
+    const page = {
+      $: async (selector) => {
+        if (selector.includes(':text-is')) throw new Error('unsupported');
+        if (selector === '.empty-state') return { dispose: async () => {} };
+        return null;
+      },
+    };
+    const r = await detectDomErrorState(page);
+    expect(r).not.toBeNull();
+    expect(r.selector).toBe('.empty-state');
+  });
+
+  test('returns null when the page object has no `$` method', async () => {
+    expect(await detectDomErrorState(null)).toBeNull();
+    expect(await detectDomErrorState({})).toBeNull();
   });
 });

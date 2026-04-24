@@ -339,6 +339,31 @@ async function captureGroup({ browser, metaData, tuples, authCtxCache, manifest,
         continue;
       }
 
+      // Optional DOM-level verification for parametrized detail pages.
+      // When meta.capture.verify_detail_pages is enabled, scan the DOM for
+      // error/empty-state markers. This catches the case where the backend
+      // returned 200 but the frontend renders a "Not found" card — which
+      // would otherwise slip through the title-based check above and end
+      // up captured as "valid" documentation content.
+      const verifyEnabled = metaData.capture && metaData.capture.verify_detail_pages === true;
+      if (verifyEnabled) {
+        const domReport = await errorPageDetector.detectDomErrorState(page);
+        if (domReport) {
+          manifest.errors.push({
+            role: roleName,
+            capture_id: tuple.pageId,
+            stage: 'dom-verify',
+            message: domReport.reason,
+            url: page.url ? page.url() : finalUrl,
+          });
+          manifest.warnings.push({
+            scope: 'capture:dom-verify',
+            message: `page ${tuple.pageId} (${tuple.path}) rendered an error/empty state in the DOM (${domReport.selector}); skipping screenshot`,
+          });
+          continue;
+        }
+      }
+
       // Per-page interactions (FAQ accordion expansion, search field fill,
       // filter button click) run BEFORE actions so the action-driven multi-
       // shot loop sees the prepared state.

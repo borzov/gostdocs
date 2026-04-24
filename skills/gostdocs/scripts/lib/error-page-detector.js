@@ -101,8 +101,58 @@ function detectErrorPage(ctx) {
   return null;
 }
 
+// DOM selectors that commonly appear on in-app error/empty states — i.e.
+// the backend returned 200 but the frontend rendered a "Not found" block.
+// Most of these patterns are stack-agnostic: admin panels / React / Vue /
+// Laravel apps all wire similar role/data attributes on their error cards.
+const DOM_ERROR_SELECTORS = [
+  '[data-error]',
+  '[data-testid="empty-state"]',
+  '[data-testid="error-state"]',
+  '[data-testid="not-found"]',
+  '[role="alert"]',
+  '.page-not-found',
+  '.empty-state',
+  '.error-page',
+  'h1:text-is("404")',
+  'h1:text-is("Page Not Found")',
+  'h1:text-is("Страница не найдена")',
+  'h1:text-is("Не найдено")',
+  'h1:text-is("Ошибка")',
+];
+
+/**
+ * Run a DOM-level probe after `page.goto()` has resolved and the dismiss
+ * routines have run. Returns `null` when the DOM looks healthy, or a
+ * small report object when the page is clearly an error/empty state.
+ *
+ * We run each selector in isolation so one broken pseudo-selector (e.g.
+ * `:text-is`) cannot take the whole probe down on older Playwright builds
+ * — a throw from `page.$` is interpreted as "selector unsupported, skip".
+ *
+ * @param {any} page — Playwright Page instance
+ * @returns {Promise<null | { reason: string, selector: string }>}
+ */
+async function detectDomErrorState(page) {
+  if (!page || typeof page.$ !== 'function') return null;
+  for (const selector of DOM_ERROR_SELECTORS) {
+    try {
+      const handle = await page.$(selector);
+      if (handle) {
+        try { await handle.dispose(); } catch { /* ignore */ }
+        return { reason: `dom-marker:${selector}`, selector };
+      }
+    } catch {
+      // Selector not supported by this Playwright build — skip.
+    }
+  }
+  return null;
+}
+
 module.exports = {
   detectErrorPage,
+  detectDomErrorState,
+  DOM_ERROR_SELECTORS,
   ERROR_URL_PATTERNS,
   ERROR_TITLE_PATTERNS,
 };

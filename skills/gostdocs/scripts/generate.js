@@ -133,13 +133,33 @@ function resolveLang(meta, opts) {
   return pick.startsWith('en') ? 'en' : 'ru';
 }
 
+// Synonym map for GEN:mermaid source="…" — agents sometimes emit the
+// diagram in a file whose name differs from the canonical directive token
+// (`auth-flow.md` instead of `auth-sequence.md`). Match the canonical key
+// first, then walk synonyms so we find hand-written diagrams without
+// forcing authors to rename files.
+const MERMAID_SOURCE_SYNONYMS = {
+  'auth-sequence': ['auth-sequence', 'sequence', 'login-sequence', 'auth-flow', 'login-flow'],
+  'architecture':  ['architecture', 'components', 'system', 'topology'],
+  'sequence':      ['sequence', 'user-sequence', 'typical-flow'],
+  'er-diagram':    ['er-diagram', 'erd', 'entity-relationship', 'schema'],
+  'component':     ['component', 'components', 'module-diagram'],
+  'dataflow':      ['dataflow', 'data-flow', 'data_flow'],
+};
+
 function extractMermaidSourceFromResearch(sourceName, researchMd) {
-  const direct = researchMd[`${sourceName}.mmd`];
-  if (direct) return direct.trim();
-  const md = researchMd[sourceName];
-  if (!md) return null;
-  const match = md.match(/```mermaid\s*\n([\s\S]*?)```/);
-  return match ? match[1].trim() : null;
+  const key = String(sourceName || '').toLowerCase();
+  const candidates = [sourceName, ...(MERMAID_SOURCE_SYNONYMS[key] || [])];
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    const direct = researchMd[`${candidate}.mmd`];
+    if (direct) return direct.trim();
+    const md = researchMd[candidate];
+    if (!md) continue;
+    const match = md.match(/```mermaid\s*\n([\s\S]*?)```/);
+    if (match) return match[1].trim();
+  }
+  return null;
 }
 
 function resolveImageRef(captureFile) {
@@ -463,13 +483,28 @@ function buildExpanders(ctx) {
           pushWarning(ctx, 'mermaid', `ERD synthesised from schema for source="${attrs.source}"`);
         }
       }
-      if (!source && /^(auth|auth[-_]?sequence|login[-_]?sequence)$/.test(sourceKey)) {
+      if (!source && /^(auth|auth[-_]?sequence|login[-_]?sequence|auth[-_]?flow|login[-_]?flow)$/.test(sourceKey)) {
         const scan = ctx.securityScan || securityScan.scanSecurity(ctx.projectPath);
         ctx.securityScan = scan;
-        const synthesised = diagramsLib.buildAuthSequenceMermaid(scan, { lang: ctx.lang });
+        // Prefer the concrete `auth_api` endpoint emitted by role-discovery;
+        // fall back to the security-scan library detection; when neither
+        // exists but the user asked for an auth-sequence, force-render the
+        // generic JWT/session diagram so every doc gets a visualisation.
+        const authApi = (ctx.coverage && ctx.coverage.aggregate && ctx.coverage.aggregate.security_facts
+                         && ctx.coverage.aggregate.security_facts.auth)
+          || (ctx.coverage && ctx.coverage.security_facts && ctx.coverage.security_facts.auth)
+          || null;
+        const mappedAuthApi = authApi
+          ? { scheme: authApi.scheme, login_endpoint: (authApi.parameters && authApi.parameters.login_endpoint) || '/auth/login', refresh_endpoint: (authApi.parameters && authApi.parameters.refresh_endpoint) || null }
+          : null;
+        const synthesised = diagramsLib.buildAuthSequenceMermaid(scan, {
+          lang: ctx.lang,
+          authApi: mappedAuthApi,
+          force: Boolean(mappedAuthApi),
+        });
         if (synthesised) {
           source = synthesised;
-          pushWarning(ctx, 'mermaid', `auth sequence synthesised from security scan for source="${attrs.source}"`);
+          pushWarning(ctx, 'mermaid', `auth sequence synthesised for source="${attrs.source}"`);
         }
       }
       if (!source && /^(component|component[-_]?diagram|components|topology)$/.test(sourceKey)) {

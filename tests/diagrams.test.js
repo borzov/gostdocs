@@ -3,7 +3,7 @@
 const diagrams = require('../skills/gostdocs/scripts/lib/diagrams');
 
 describe('buildAuthSequenceMermaid', () => {
-  test('returns null for empty scan', () => {
+  test('returns null when neither security scan nor authApi has evidence', () => {
     expect(diagrams.buildAuthSequenceMermaid(null)).toBeNull();
     expect(diagrams.buildAuthSequenceMermaid({ authentication: {} })).toBeNull();
   });
@@ -13,6 +13,24 @@ describe('buildAuthSequenceMermaid', () => {
     expect(out).toMatch(/^sequenceDiagram/);
     expect(out).toMatch(/Пользователь/);
     expect(out).toMatch(/POST \/auth\/login/);
+  });
+
+  test('renders from authApi when security scan is empty', () => {
+    const out = diagrams.buildAuthSequenceMermaid(
+      { authentication: {} },
+      { authApi: { scheme: 'JWT', login_endpoint: '/api/v1/auth/login' } },
+    );
+    expect(out).toMatch(/^sequenceDiagram/);
+    expect(out).toMatch(/POST \/api\/v1\/auth\/login/);
+  });
+
+  test('adds a refresh-token round-trip when refresh_endpoint is given', () => {
+    const out = diagrams.buildAuthSequenceMermaid(
+      null,
+      { authApi: { login_endpoint: '/auth/login', refresh_endpoint: '/auth/refresh' }, force: true },
+    );
+    expect(out).toMatch(/POST \/auth\/refresh/);
+    expect(out).toMatch(/Обновляет access-токен/);
   });
 
   test('English labels when lang=en', () => {

@@ -47,12 +47,67 @@ function read(projectPath, captureFile) {
   return schema.validate(JSON.parse(raw));
 }
 
-function write(projectPath, captureFile, data) {
+/**
+ * When a newly-written inspection shares the same (role, viewport, locale,
+ * title) triple as an existing JSON, append the URL path as a disambiguator
+ * so the generator does not fail on duplicate H3 headings. This is a
+ * defensive measure: agents sometimes emit "Подтверждение email" for both
+ * `/verify-email` and `/verification-notice`, and md-lint catches the
+ * duplicate only after the DOCX is already written.
+ *
+ * Returns the (possibly-amended) data plus an optional warning record so
+ * the caller can surface the rename in phase-7 REPORT.md.
+ *
+ * @returns {{ data: object, warning: { scope: string, message: string }|null }}
+ */
+function dedupeTitleIfCollides(projectPath, captureFile, data) {
+  if (!data || !data.title) return { data, warning: null };
+  // Title missing or blank — nothing to clash with.
+  const title = String(data.title).trim();
+  if (!title) return { data, warning: null };
+  // Walk the sibling inspections in the same (role, viewport, locale) slice.
+  const existing = listAll(projectPath).filter((entry) => {
+    if (!entry.data || entry.data.file === data.file) return false;
+    if (entry.data.role !== data.role) return false;
+    if (entry.data.viewport !== data.viewport) return false;
+    if ((entry.data.locale || null) !== (data.locale || null)) return false;
+    return String(entry.data.title || '').trim() === title;
+  });
+  if (existing.length === 0) return { data, warning: null };
+  // Derive a short suffix from the capture file so the disambiguator is
+  // stack-agnostic — `/admin/users/42.png` → "— /admin/users/42".
+  const suffix = String(captureFile || '')
+    .replace(/\.png$/i, '')
+    .replace(/[/\\]/g, '/')
+    .split('/')
+    .slice(-3)
+    .join('/');
+  const amended = { ...data, title: `${title} — /${suffix}` };
+  return {
+    data: amended,
+    warning: {
+      scope: 'inspection:title-dedup',
+      message: `duplicate title "${title}" collided with ${existing.length} prior capture(s); renamed to "${amended.title}"`,
+    },
+  };
+}
+
+function write(projectPath, captureFile, data, opts = {}) {
   const filePath = resolveJsonPath(projectPath, captureFile);
-  const validated = schema.validate(data);
+  // Disambiguate the title BEFORE Zod validation so the final on-disk
+  // record already carries the amended value. Opting out via
+  // `skipDedupe:true` is useful for tests that bootstrap fixture data
+  // where collisions are intentional.
+  const { data: effective, warning } = opts.skipDedupe
+    ? { data, warning: null }
+    : dedupeTitleIfCollides(projectPath, captureFile, data);
+  const validated = schema.validate(effective);
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, JSON.stringify(validated, null, 2), 'utf8');
-  return filePath;
+  if (warning && Array.isArray(opts.warnings)) {
+    opts.warnings.push(warning);
+  }
+  return { path: filePath, warning };
 }
 
 /**

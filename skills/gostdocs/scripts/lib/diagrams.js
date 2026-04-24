@@ -20,9 +20,31 @@ function uniq(list) {
   return Array.from(new Set(list.filter(Boolean)));
 }
 
+/**
+ * Decide whether ANY authentication signal is present, even when the
+ * security-scan library-matcher came up empty. Modern backends often use a
+ * framework-native JWT flow whose libraries aren't in the matcher's
+ * allowlist, but role-discovery still reports the login endpoint — in
+ * which case we should still render an informative sequence diagram.
+ *
+ * @param {object|null} securityScan
+ * @param {object|null} authApi — role-discovery `auth_api` summary
+ * @returns {boolean}
+ */
+function hasAuthSignal(securityScan, authApi) {
+  if (securityScan) {
+    const auth = securityScan.authentication || {};
+    if (Object.keys(auth).length > 0) return true;
+  }
+  if (authApi && (authApi.login_endpoint || authApi.scheme)) return true;
+  return false;
+}
+
 function buildAuthSequenceMermaid(securityScan, opts = {}) {
-  if (!securityScan) return null;
-  const auth = securityScan.authentication || {};
+  const authApi = opts.authApi || null;
+  if (!hasAuthSignal(securityScan, authApi) && !opts.force) {
+    return null;
+  }
   const lang = opts.lang === 'en' ? 'en' : 'ru';
   const t = lang === 'en'
     ? {
@@ -31,6 +53,7 @@ function buildAuthSequenceMermaid(securityScan, opts = {}) {
       tokenOut: 'Issues JWT / session token', tokenStore: 'Caches token state',
       request: 'Calls protected endpoint with token', verify: 'Verifies token',
       response: 'Returns protected resource',
+      refresh: 'Refreshes access token',
     }
     : {
       user: 'Пользователь', client: 'Клиент', server: 'Сервер приложения', store: 'Хранилище сессий/токенов',
@@ -38,11 +61,15 @@ function buildAuthSequenceMermaid(securityScan, opts = {}) {
       tokenOut: 'Выдаёт JWT / токен сессии', tokenStore: 'Сохраняет состояние токена',
       request: 'Вызывает защищённый эндпоинт с токеном', verify: 'Проверяет токен',
       response: 'Возвращает защищённый ресурс',
+      refresh: 'Обновляет access-токен по refresh-токену',
     };
 
-  const usesJwt = Boolean(auth.jwt);
-  const usesSession = Boolean(auth.session);
-  if (!usesJwt && !usesSession && Object.keys(auth).length === 0) return null;
+  // Prefer the real login endpoint advertised by role-discovery, fall back
+  // to the conventional /auth/login so the diagram still renders.
+  const loginPath = (authApi && authApi.login_endpoint)
+    || (securityScan && securityScan.login_endpoint)
+    || '/auth/login';
+  const refreshPath = (authApi && authApi.refresh_endpoint) || null;
 
   const lines = [
     'sequenceDiagram',
@@ -51,7 +78,7 @@ function buildAuthSequenceMermaid(securityScan, opts = {}) {
     `    participant S as ${t.server}`,
     `    participant D as ${t.store}`,
     `    U->>C: ${t.submit}`,
-    `    C->>S: POST /auth/login`,
+    `    C->>S: POST ${loginPath}`,
     `    S->>S: ${t.check}`,
     `    S->>D: ${t.tokenStore}`,
     `    S-->>C: ${t.tokenOut}`,
@@ -59,6 +86,10 @@ function buildAuthSequenceMermaid(securityScan, opts = {}) {
     `    S->>D: ${t.verify}`,
     `    S-->>C: ${t.response}`,
   ];
+  if (refreshPath) {
+    lines.push(`    C->>S: POST ${refreshPath}`);
+    lines.push(`    S-->>C: ${t.refresh}`);
+  }
   return lines.join('\n');
 }
 

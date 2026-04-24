@@ -162,6 +162,12 @@ const schema = z
         locales: z.array(z.string()).default([]),
         wait_after_navigation: z.number().int().nonnegative().default(2000),
         timeout: z.number().int().positive().default(30000),
+        // DOM-level verification: after page.goto, scan for common error /
+        // empty-state markers (`[data-error]`, `h1:text-is("404")`, etc.)
+        // and skip the screenshot when found. Protects documentation from
+        // silently capturing "Not found" cards on parametrized routes
+        // whose seed data is missing.
+        verify_detail_pages: z.boolean().default(false),
       })
       .default({
         viewports: [{ name: 'desktop', width: 1280, height: 800 }],
@@ -169,6 +175,7 @@ const schema = z
         locales: [],
         wait_after_navigation: 2000,
         timeout: 30000,
+        verify_detail_pages: false,
       }),
 
     states: z.array(z.enum(['empty', 'error', 'permission-denied'])).default([]),
