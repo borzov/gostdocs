@@ -2,11 +2,11 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const store = require('../skills/gen-docs/scripts/lib/inspection-store');
-const schema = require('../skills/gen-docs/scripts/lib/inspection-schema');
+const store = require('../skills/gostdocs/scripts/lib/inspection-store');
+const schema = require('../skills/gostdocs/scripts/lib/inspection-schema');
 
 function tmpProject() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'gen-docs-insp-'));
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'gostdocs-insp-'));
 }
 
 describe('resolveJsonPath', () => {

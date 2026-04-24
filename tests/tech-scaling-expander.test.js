@@ -1,6 +1,6 @@
 'use strict';
 
-const { buildTechScaling } = require('../skills/gen-docs/scripts/lib/tech-scaling-expander');
+const { buildTechScaling } = require('../skills/gostdocs/scripts/lib/tech-scaling-expander');
 
 const EMPTY_SCAN = {
   horizontal_scaling: {},

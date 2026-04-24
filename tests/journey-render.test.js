@@ -1,6 +1,6 @@
 const { renderJourneyToDocModel, renderJourneysSection, findCaptureForStep, stepDescription } =
-  require('../skills/gen-docs/scripts/lib/journey-render');
-const docModel = require('../skills/gen-docs/scripts/lib/doc-model');
+  require('../skills/gostdocs/scripts/lib/journey-render');
+const docModel = require('../skills/gostdocs/scripts/lib/doc-model');
 
 const sampleJourney = {
   name: 'create-order',

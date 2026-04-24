@@ -126,10 +126,10 @@ function writePuppeteerConfig(executablePath, opts = {}) {
 function ensureRuntime({ force = false } = {}) {
   const pinned = readPinnedVersions();
   if (!pinned.playwright) {
-    throw new Error('skills/gen-docs/package.json has no pinned playwright version');
+    throw new Error('skills/gostdocs/package.json has no pinned playwright version');
   }
   if (!pinned.mmdc) {
-    throw new Error('skills/gen-docs/package.json has no pinned @mermaid-js/mermaid-cli version');
+    throw new Error('skills/gostdocs/package.json has no pinned @mermaid-js/mermaid-cli version');
   }
 
   const installedPw = installedPlaywrightVersion();

@@ -1,4 +1,4 @@
-const { applyDismiss, mergeSelectors } = require('../skills/gen-docs/scripts/lib/dismiss');
+const { applyDismiss, mergeSelectors } = require('../skills/gostdocs/scripts/lib/dismiss');
 
 function makeLocator({ visible = true, clickable = true } = {}) {
   return {

@@ -2,10 +2,10 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const fileHash = require('../skills/gen-docs/scripts/lib/file-hash');
+const fileHash = require('../skills/gostdocs/scripts/lib/file-hash');
 
 function tmp() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'gen-docs-fh-'));
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'gostdocs-fh-'));
 }
 
 describe('sha256Buffer', () => {

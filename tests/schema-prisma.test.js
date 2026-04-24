@@ -1,4 +1,4 @@
-const prisma = require('../skills/gen-docs/scripts/adapters/schema/prisma');
+const prisma = require('../skills/gostdocs/scripts/adapters/schema/prisma');
 
 describe('splitBlocks', () => {
   test('extracts model and enum blocks', () => {

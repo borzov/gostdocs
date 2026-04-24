@@ -1,5 +1,5 @@
 {
-  "name": "gen-docs",
+  "name": "gostdocs",
   "version": "0.3.0-dev",
   "description": "GOST-compliant documentation generator for information systems — user guides, admin guides, operator guides, technical descriptions with automatic screenshots",
   "author": {
@@ -18,8 +18,8 @@
     "pandoc"
   ],
   "scripts": {
-    "bootstrap": "node skills/gen-docs/scripts/bootstrap.js",
-    "pretest": "node skills/gen-docs/scripts/bootstrap.js --check || node skills/gen-docs/scripts/bootstrap.js",
+    "bootstrap": "node skills/gostdocs/scripts/bootstrap.js",
+    "pretest": "node skills/gostdocs/scripts/bootstrap.js --check || node skills/gostdocs/scripts/bootstrap.js",
     "test": "jest",
     "test:py": "pytest tests"
   },

@@ -2,10 +2,10 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const rr = require('../skills/gen-docs/scripts/lib/research-result');
+const rr = require('../skills/gostdocs/scripts/lib/research-result');
 
 function tmpFile() {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gen-docs-rr-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gostdocs-rr-'));
   return path.join(dir, 'summary.json');
 }
 

@@ -1,5 +1,5 @@
-const dm = require('../skills/gen-docs/scripts/lib/doc-model');
-const render = require('../skills/gen-docs/scripts/lib/doc-model-md');
+const dm = require('../skills/gostdocs/scripts/lib/doc-model');
+const render = require('../skills/gostdocs/scripts/lib/doc-model-md');
 
 function docWithSections() {
   const doc = dm.newDocument({ title: 'Руководство', lang: 'ru-RU' });

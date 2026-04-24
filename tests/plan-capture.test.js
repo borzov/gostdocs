@@ -2,10 +2,10 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const { runPlanCapture, augmentPagesWithComponents } = require('../skills/gen-docs/scripts/plan-capture');
+const { runPlanCapture, augmentPagesWithComponents } = require('../skills/gostdocs/scripts/plan-capture');
 
 function tmpProject() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'gen-docs-plan-'));
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'gostdocs-plan-'));
 }
 
 function baseMeta(projectPath) {

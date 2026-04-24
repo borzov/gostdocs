@@ -4,11 +4,11 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const generate = require('../skills/gen-docs/scripts/generate');
-const dm = require('../skills/gen-docs/scripts/lib/doc-model');
+const generate = require('../skills/gostdocs/scripts/generate');
+const dm = require('../skills/gostdocs/scripts/lib/doc-model');
 
 function mkTmpProject() {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gen-docs-run-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gostdocs-run-'));
   // Minimal meta.yaml compliant with v0.3 schema
   fs.writeFileSync(
     path.join(tmp, 'meta.yaml'),

@@ -1,4 +1,4 @@
-const { buildMatrix, axisOrNull, buildTupleId } = require('../skills/gen-docs/scripts/lib/matrix');
+const { buildMatrix, axisOrNull, buildTupleId } = require('../skills/gostdocs/scripts/lib/matrix');
 
 const baseMeta = {
   auth: {

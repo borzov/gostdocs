@@ -4,7 +4,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const { scanScaling } = require('../skills/gen-docs/scripts/lib/scaling-scan');
+const { scanScaling } = require('../skills/gostdocs/scripts/lib/scaling-scan');
 
 function mkTmp() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'scaling-scan-'));

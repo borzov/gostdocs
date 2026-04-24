@@ -1,4 +1,4 @@
-const { buildReport, STRINGS } = require('../skills/gen-docs/scripts/lib/report');
+const { buildReport, STRINGS } = require('../skills/gostdocs/scripts/lib/report');
 
 const BASE = {
   manifest: {

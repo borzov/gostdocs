@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const initMeta = require('../skills/gen-docs/scripts/init-meta');
+const initMeta = require('../skills/gostdocs/scripts/init-meta');
 
 function makeProject(layout = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'initmeta-'));

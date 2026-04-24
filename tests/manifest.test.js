@@ -2,10 +2,10 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const manifest = require('../skills/gen-docs/scripts/lib/manifest');
+const manifest = require('../skills/gostdocs/scripts/lib/manifest');
 
 function tmp() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'gen-docs-manifest-'));
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'gostdocs-manifest-'));
 }
 
 describe('buildFilename', () => {

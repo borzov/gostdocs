@@ -1,4 +1,4 @@
-const pgDump = require('../skills/gen-docs/scripts/adapters/schema/pg-dump');
+const pgDump = require('../skills/gostdocs/scripts/adapters/schema/pg-dump');
 
 describe('parseSchemaDump', () => {
   test('parses CREATE TABLE with columns and defaults', () => {

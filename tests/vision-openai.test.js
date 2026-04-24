@@ -1,4 +1,4 @@
-const openai = require('../skills/gen-docs/scripts/adapters/vision/openai');
+const openai = require('../skills/gostdocs/scripts/adapters/vision/openai');
 
 function mockResponse({ status = 200, body = '' } = {}) {
   return {

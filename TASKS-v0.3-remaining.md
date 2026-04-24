@@ -1,4 +1,4 @@
-# gen-docs v0.3 — остаточные задачи
+# GOSTDocs v0.3 — остаточные задачи
 
 Документ фиксирует три незакрытые фазы и служит входом для новой рабочей
 сессии. Весь фундамент (Phase 1 – 8A) уже в `main`: 13 коммитов,
@@ -8,7 +8,7 @@
 ## Предусловия для любой задачи
 
 - Node 18.17+, npm
-- `node skills/gen-docs/scripts/bootstrap.js` — sandbox готов (первый прогон ~2 мин, далее idempotent)
+- `node skills/gostdocs/scripts/bootstrap.js` — sandbox готов (первый прогон ~2 мин, далее idempotent)
 - `npm test` — все тесты остаются зелёными после любых изменений
 - Не добавлять новые runtime-зависимости без согласования: sandbox
   зафиксирован на `playwright@1.59.1`, `zod@3.23.8`, `yaml@2.6.1`
@@ -38,8 +38,8 @@ Doc-Model → Markdown с прогоном через md-lint.
 
 ### Deliverables
 
-- `skills/gen-docs/scripts/generate.js` — CLI-entry
-- `skills/gen-docs/scripts/lib/template-loader.js` — парсер старых
+- `skills/gostdocs/scripts/generate.js` — CLI-entry
+- `skills/gostdocs/scripts/lib/template-loader.js` — парсер старых
   шаблонов в skeleton Doc-Model (переходный слой)
 - Обновлённые шаблоны (если принято решение полностью переехать
   в Doc-Model-YAML) — опционально на этой фазе
@@ -54,7 +54,7 @@ Doc-Model → Markdown с прогоном через md-lint.
 - `docs/generated/_inspection/**.json` — через
   `scripts/lib/inspection-store.listAll`
 - `journeys.yaml` — через `scripts/lib/journeys.load(path)`
-- `skills/gen-docs/templates/gost-{strict|lite}/{doc-type}.md`
+- `skills/gostdocs/templates/gost-{strict|lite}/{doc-type}.md`
 
 ### Алгоритм
 
@@ -139,7 +139,7 @@ generate.js заменяет на контент из research. Старые ш�
 
 ### Acceptance
 
-- `node skills/gen-docs/scripts/generate.js --config docs/meta.yaml`
+- `node skills/gostdocs/scripts/generate.js --config docs/meta.yaml`
   создаёт `docs/generated/*.md`
 - `--only user-guide` генерирует только один документ
 - `--dry-run` печатает план, ничего не пишет
@@ -159,9 +159,9 @@ generate.js заменяет на контент из research. Старые ш�
 
 ### Deliverables
 
-- `skills/gen-docs/scripts/validators/docx.py` — python-docx +
+- `skills/gostdocs/scripts/validators/docx.py` — python-docx +
   OpenXML-валидатор
-- `skills/gen-docs/scripts/report.js` — CLI-обёртка над
+- `skills/gostdocs/scripts/report.js` — CLI-обёртка над
   `scripts/lib/report.buildReport`
 - Тесты: pytest для Python, jest для report.js
 - (опционально) `scripts/lib/phash.js` — perceptual hash через `sharp`
@@ -195,7 +195,7 @@ generate.js заменяет на контент из research. Старые ш�
 ### Интерфейс
 
 ```
-python3 skills/gen-docs/scripts/validators/docx.py \
+python3 skills/gostdocs/scripts/validators/docx.py \
   --doc docs/output/user-guide.docx \
   --mode strict \
   --doc-type user-guide \
@@ -247,7 +247,7 @@ Exit code: 0 если `passed=true`, иначе 1.
 
 ### Acceptance
 
-- `node skills/gen-docs/scripts/report.js --config docs/meta.yaml`
+- `node skills/gostdocs/scripts/report.js --config docs/meta.yaml`
   пишет `docs/REPORT.md`
 - Strict mode блокирует publish при отклонениях ГОСТ-формата или
   незаполненных чеклистах
@@ -267,10 +267,10 @@ Exit code: 0 если `passed=true`, иначе 1.
 
 ### Deliverables
 
-- `skills/gen-docs/scripts/lib/doc-model-translate.js` — перевод
+- `skills/gostdocs/scripts/lib/doc-model-translate.js` — перевод
   JSON-структуры с сохранением shape
-- `skills/gen-docs/scripts/adapters/translator/{claude,openai}.js`
-- `skills/gen-docs/scripts/postprocess.js` (новая Node-обёртка) или
+- `skills/gostdocs/scripts/adapters/translator/{claude,openai}.js`
+- `skills/gostdocs/scripts/postprocess.js` (новая Node-обёртка) или
   переработанный `scripts/postprocess-docx.py` с флагами
 - Опциональный `_glossary.yaml` в корне пользовательского проекта
 - Тесты

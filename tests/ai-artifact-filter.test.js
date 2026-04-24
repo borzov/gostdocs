@@ -1,4 +1,4 @@
-const filter = require('../skills/gen-docs/scripts/lib/ai-artifact-filter');
+const filter = require('../skills/gostdocs/scripts/lib/ai-artifact-filter');
 
 describe('detect — filename patterns', () => {
   test('TECHNICAL_SPECIFICATION.md flagged medium on filename alone', () => {

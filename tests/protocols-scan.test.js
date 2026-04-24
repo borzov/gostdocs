@@ -4,7 +4,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const { scanProtocols } = require('../skills/gen-docs/scripts/lib/protocols-scan');
+const { scanProtocols } = require('../skills/gostdocs/scripts/lib/protocols-scan');
 
 function mkTmp() { return fs.mkdtempSync(path.join(os.tmpdir(), 'proto-scan-')); }
 function cleanup(dir) { fs.rmSync(dir, { recursive: true, force: true }); }

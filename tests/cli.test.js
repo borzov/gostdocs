@@ -1,4 +1,4 @@
-const { parseArgs, assertConsistent } = require('../skills/gen-docs/scripts/lib/cli');
+const { parseArgs, assertConsistent } = require('../skills/gostdocs/scripts/lib/cli');
 
 describe('parseArgs — boolean flags', () => {
   test('defaults are all falsy/null', () => {

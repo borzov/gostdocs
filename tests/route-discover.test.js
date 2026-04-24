@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const rd = require('../skills/gen-docs/scripts/lib/route-discover');
+const rd = require('../skills/gostdocs/scripts/lib/route-discover');
 
 function makeTmp(layout = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rd-'));

@@ -1,4 +1,4 @@
-const form = require('../skills/gen-docs/scripts/adapters/auth/form');
+const form = require('../skills/gostdocs/scripts/adapters/auth/form');
 
 function makeDetectPage(shape) {
   return {

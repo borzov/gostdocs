@@ -1,4 +1,4 @@
-const { runPrecheck, formatResult } = require('../skills/gen-docs/scripts/precheck');
+const { runPrecheck, formatResult } = require('../skills/gostdocs/scripts/precheck');
 
 function mockFetch(responses) {
   // Match either exact url or url with/without trailing slash.

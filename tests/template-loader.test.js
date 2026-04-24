@@ -4,8 +4,8 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 
-const loader = require('../skills/gen-docs/scripts/lib/template-loader');
-const dm = require('../skills/gen-docs/scripts/lib/doc-model');
+const loader = require('../skills/gostdocs/scripts/lib/template-loader');
+const dm = require('../skills/gostdocs/scripts/lib/doc-model');
 
 describe('DIRECTIVE_REGEX', () => {
   test('exposes a regex', () => {
@@ -452,7 +452,7 @@ describe('collectDuplicateDirectives', () => {
 
 describe('loadTemplate', () => {
   test('reads template from disk', async () => {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gen-docs-loader-'));
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gostdocs-loader-'));
     try {
       const p = path.join(tmp, 'sample.md');
       fs.writeFileSync(

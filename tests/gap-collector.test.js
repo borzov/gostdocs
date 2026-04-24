@@ -1,6 +1,6 @@
 'use strict';
 
-const { collectGaps } = require('../skills/gen-docs/scripts/lib/gap-collector');
+const { collectGaps } = require('../skills/gostdocs/scripts/lib/gap-collector');
 
 describe('collectGaps', () => {
   test('reports app.url gap when missing', () => {
@@ -96,7 +96,7 @@ describe('collectGaps', () => {
   });
 
   test('groups gaps into AskUserQuestion-friendly batches of <= 4', () => {
-    const { batchGaps } = require('../skills/gen-docs/scripts/lib/gap-collector');
+    const { batchGaps } = require('../skills/gostdocs/scripts/lib/gap-collector');
     const gaps = [
       { field: 'a', question: 'q1', importance: 'critical' },
       { field: 'b', question: 'q2', importance: 'critical' },

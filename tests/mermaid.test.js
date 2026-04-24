@@ -1,6 +1,6 @@
 const path = require('path');
 const fs = require('fs');
-const mermaid = require('../skills/gen-docs/scripts/adapters/mermaid');
+const mermaid = require('../skills/gostdocs/scripts/adapters/mermaid');
 
 describe('isAvailable', () => {
   beforeEach(() => mermaid.resetAvailabilityCache());

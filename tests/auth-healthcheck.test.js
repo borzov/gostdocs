@@ -1,4 +1,4 @@
-const healthcheck = require('../skills/gen-docs/scripts/adapters/auth/healthcheck');
+const healthcheck = require('../skills/gostdocs/scripts/adapters/auth/healthcheck');
 
 const META = {
   app: { url: 'http://localhost:3000' },

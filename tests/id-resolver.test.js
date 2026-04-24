@@ -1,4 +1,4 @@
-const id = require('../skills/gen-docs/scripts/adapters/id-resolver');
+const id = require('../skills/gostdocs/scripts/adapters/id-resolver');
 
 describe('planResolution', () => {
   test('static route produces no steps and no missing params', () => {

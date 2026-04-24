@@ -1,6 +1,6 @@
 'use strict';
 
-const { buildTechSecurity } = require('../skills/gen-docs/scripts/lib/tech-security-expander');
+const { buildTechSecurity } = require('../skills/gostdocs/scripts/lib/tech-security-expander');
 
 const EMPTY_SCAN = {
   deps_found: 0,

@@ -1,6 +1,6 @@
 'use strict';
 
-const { buildMeta, propose } = require('../skills/gen-docs/scripts/lib/meta-builder');
+const { buildMeta, propose } = require('../skills/gostdocs/scripts/lib/meta-builder');
 
 const MIN_EXISTING = {
   project_path: '/p',

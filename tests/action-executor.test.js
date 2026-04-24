@@ -1,4 +1,4 @@
-const { executeActions, executeStep } = require('../skills/gen-docs/scripts/lib/action-executor');
+const { executeActions, executeStep } = require('../skills/gostdocs/scripts/lib/action-executor');
 
 function makePage(overrides = {}) {
   return {

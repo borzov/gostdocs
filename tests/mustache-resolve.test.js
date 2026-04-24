@@ -1,6 +1,6 @@
 'use strict';
 
-const { resolveMustache } = require('../skills/gen-docs/scripts/lib/mustache-resolve');
+const { resolveMustache } = require('../skills/gostdocs/scripts/lib/mustache-resolve');
 
 describe('resolveMustache', () => {
   test('replaces a single token in plain prose', () => {

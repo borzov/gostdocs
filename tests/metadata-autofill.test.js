@@ -1,5 +1,5 @@
 const { deriveMetadata, mergeMetadata, extractFromPyproject, deriveContextDefaults } =
-  require('../skills/gen-docs/scripts/lib/metadata-autofill');
+  require('../skills/gostdocs/scripts/lib/metadata-autofill');
 
 function makeReadFile(files) {
   return (p) => {

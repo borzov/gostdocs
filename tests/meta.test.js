@@ -2,10 +2,10 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const meta = require('../skills/gen-docs/scripts/lib/meta');
+const meta = require('../skills/gostdocs/scripts/lib/meta');
 
 function tmpFile(contents) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gen-docs-meta-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gostdocs-meta-'));
   const file = path.join(dir, 'meta.yaml');
   fs.writeFileSync(file, contents, 'utf8');
   return file;
@@ -159,7 +159,7 @@ describe('load roundtrip', () => {
   });
 
   test('save + load preserves shape', () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gen-docs-meta-'));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gostdocs-meta-'));
     const file = path.join(dir, 'meta.yaml');
     const obj = {
       project_path: '/p',

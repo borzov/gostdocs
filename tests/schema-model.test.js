@@ -1,4 +1,4 @@
-const schemaModel = require('../skills/gen-docs/scripts/lib/schema-model');
+const schemaModel = require('../skills/gostdocs/scripts/lib/schema-model');
 
 describe('validate', () => {
   test('empty schema validates', () => {

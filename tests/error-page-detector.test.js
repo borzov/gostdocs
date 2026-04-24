@@ -1,6 +1,6 @@
 'use strict';
 
-const { detectErrorPage } = require('../skills/gen-docs/scripts/lib/error-page-detector');
+const { detectErrorPage } = require('../skills/gostdocs/scripts/lib/error-page-detector');
 
 const resp = (status) => ({ status: () => status });
 

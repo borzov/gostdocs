@@ -2,11 +2,11 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const { runInspector, warnsForAuthedLogin, writePendingClaudeJobs } = require('../skills/gen-docs/scripts/ui-inspector');
-const manifestLib = require('../skills/gen-docs/scripts/lib/manifest');
+const { runInspector, warnsForAuthedLogin, writePendingClaudeJobs } = require('../skills/gostdocs/scripts/ui-inspector');
+const manifestLib = require('../skills/gostdocs/scripts/lib/manifest');
 
 function tmpProject() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'gen-docs-ui-'));
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'gostdocs-ui-'));
 }
 
 function baseMeta(project, provider = 'claude') {

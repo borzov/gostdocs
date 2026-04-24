@@ -2,11 +2,11 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const { runResearch, researchDir } = require('../skills/gen-docs/scripts/research');
-const researchResult = require('../skills/gen-docs/scripts/lib/research-result');
+const { runResearch, researchDir } = require('../skills/gostdocs/scripts/research');
+const researchResult = require('../skills/gostdocs/scripts/lib/research-result');
 
 function tmpProject() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'gen-docs-research-'));
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'gostdocs-research-'));
 }
 
 function writeSummary(root, agent, coverage, files = [], warnings = []) {

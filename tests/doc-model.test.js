@@ -1,4 +1,4 @@
-const dm = require('../skills/gen-docs/scripts/lib/doc-model');
+const dm = require('../skills/gostdocs/scripts/lib/doc-model');
 
 describe('newDocument / newSection / add*', () => {
   test('builds valid tree', () => {

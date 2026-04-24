@@ -1,6 +1,6 @@
 'use strict';
 
-const { buildPageNarrative } = require('../skills/gen-docs/scripts/lib/page-narrative');
+const { buildPageNarrative } = require('../skills/gostdocs/scripts/lib/page-narrative');
 
 describe('buildPageNarrative — ru (default)', () => {
   test('prefers component_kind_notes when it is non-empty Russian prose', () => {

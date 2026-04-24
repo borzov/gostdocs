@@ -1,4 +1,4 @@
-const api = require('../skills/gen-docs/scripts/adapters/auth/api');
+const api = require('../skills/gostdocs/scripts/adapters/auth/api');
 
 function mkResponse({ status = 200, body = null, cookies = [] } = {}) {
   const headers = new Map();
@@ -112,14 +112,14 @@ describe('apiLoginRequest', () => {
       role: 'admin',
       api_endpoint: '/api/login',
       login_method: 'PUT',
-      login_headers: { 'x-client': 'gen-docs' },
+      login_headers: { 'x-client': 'gostdocs' },
       username: 'u',
       password: 'p',
     };
     await api.apiLoginRequest(role, META, { fetchImpl });
     const call = fetchImpl.mock.calls[0];
     expect(call[1].method).toBe('PUT');
-    expect(call[1].headers['x-client']).toBe('gen-docs');
+    expect(call[1].headers['x-client']).toBe('gostdocs');
   });
 });
 

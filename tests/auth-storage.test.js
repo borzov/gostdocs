@@ -1,4 +1,4 @@
-const storage = require('../skills/gen-docs/scripts/adapters/auth/storage');
+const storage = require('../skills/gostdocs/scripts/adapters/auth/storage');
 
 describe('extractToken', () => {
   test('returns null for non-object', () => {

@@ -2,10 +2,10 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const openapi = require('../skills/gen-docs/scripts/adapters/openapi');
+const openapi = require('../skills/gostdocs/scripts/adapters/openapi');
 
 function tmpFile(contents, ext = '.json') {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gen-docs-oas-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gostdocs-oas-'));
   const file = path.join(dir, `spec${ext}`);
   fs.writeFileSync(file, contents, 'utf8');
   return file;

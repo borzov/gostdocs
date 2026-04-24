@@ -4,7 +4,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const { scanSecurity } = require('../skills/gen-docs/scripts/lib/security-scan');
+const { scanSecurity } = require('../skills/gostdocs/scripts/lib/security-scan');
 
 function mkTmp() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'security-scan-'));

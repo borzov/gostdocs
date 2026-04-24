@@ -1,0 +1,4 @@
+{
+  "executablePath": "/Users/borzov/Develop/Claude/Skills/gostdocs/skills/gostdocs/.playwright-cache/chromium-1217/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
+  "args": ["--no-sandbox", "--disable-setuid-sandbox"]
+}

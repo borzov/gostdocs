@@ -1,8 +1,8 @@
 {
-  "name": "@gen-docs/skill-runtime",
+  "name": "@gostdocs/skill-runtime",
   "version": "0.3.0-dev",
   "private": true,
-  "description": "Runtime dependencies for the gen-docs Claude Code skill. Self-contained sandbox — installed once into the skill directory, not into user projects.",
+  "description": "Runtime dependencies for the gostdocs Claude Code skill. Self-contained sandbox — installed once into the skill directory, not into user projects.",
   "license": "MIT",
   "engines": {
     "node": ">=18.17.0"

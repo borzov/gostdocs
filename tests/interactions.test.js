@@ -4,7 +4,7 @@ const {
   buildUrlWithQuery,
   interactionToActionStep,
   interactionsToActionSteps,
-} = require('../skills/gen-docs/scripts/lib/interactions');
+} = require('../skills/gostdocs/scripts/lib/interactions');
 
 describe('buildUrlWithQuery', () => {
   test('returns the URL unchanged when no query params are passed', () => {

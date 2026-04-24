@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const bootstrap = require('../skills/gen-docs/scripts/bootstrap');
+const bootstrap = require('../skills/gostdocs/scripts/bootstrap');
 
 describe('bootstrap exports', () => {
   test('exposes configuration helpers', () => {
@@ -27,7 +27,7 @@ describe('readPinnedVersions', () => {
 
 describe('writePuppeteerConfig', () => {
   test('writes config JSON with supplied executablePath to the given directory', () => {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gen-docs-bs-'));
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gostdocs-bs-'));
     try {
       const cfg = bootstrap.writePuppeteerConfig('/path/to/chromium', { outDir: tmp });
       expect(cfg).toBe(path.join(tmp, '.puppeteer-config.json'));

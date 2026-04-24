@@ -1,5 +1,5 @@
 const { applyNfrPolicy, findNfrSections, isNfrSection, PLACEHOLDER_RU, PLACEHOLDER_EN } =
-  require('../skills/gen-docs/scripts/lib/nfr-policy');
+  require('../skills/gostdocs/scripts/lib/nfr-policy');
 
 describe('isNfrSection', () => {
   test.each([

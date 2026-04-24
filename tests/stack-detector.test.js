@@ -4,7 +4,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const { detectStack, detectLanguage, detectDbEngine } = require('../skills/gen-docs/scripts/lib/stack-detector');
+const { detectStack, detectLanguage, detectDbEngine } = require('../skills/gostdocs/scripts/lib/stack-detector');
 
 function mkTmp() { return fs.mkdtempSync(path.join(os.tmpdir(), 'stack-det-')); }
 function cleanup(dir) { fs.rmSync(dir, { recursive: true, force: true }); }

@@ -1,5 +1,5 @@
-const { buildSection, VALID_DOC_TYPES } = require('../skills/gen-docs/scripts/lib/security-recommendations');
-const docModel = require('../skills/gen-docs/scripts/lib/doc-model');
+const { buildSection, VALID_DOC_TYPES } = require('../skills/gostdocs/scripts/lib/security-recommendations');
+const docModel = require('../skills/gostdocs/scripts/lib/doc-model');
 
 describe('buildSection', () => {
   test.each(VALID_DOC_TYPES)('%s returns valid doc-model section', (docType) => {

@@ -1,4 +1,4 @@
-# gen-docs
+# GOSTDocs
 
 Плагин для Claude Code, который генерирует формальную документацию для информационных систем по российским стандартам ГОСТ.
 
@@ -13,10 +13,10 @@
 ```json
 {
   "extraKnownMarketplaces": {
-    "gen-docs": {
+    "gostdocs": {
       "source": {
         "source": "github",
-        "repo": "borzov/gen-docs"
+        "repo": "borzov/gostdocs"
       }
     }
   }
@@ -26,21 +26,21 @@
 Затем в Claude Code:
 
 ```
-/plugin install gen-docs@gen-docs
+/plugin install gostdocs@gostdocs
 ```
 
 ### Ручная установка
 
 ```bash
-git clone https://github.com/borzov/gen-docs.git
-cp -R gen-docs/skills/gen-docs ~/.claude/skills/gen-docs
+git clone https://github.com/borzov/gostdocs.git
+cp -R gostdocs/skills/gostdocs ~/.claude/skills/gostdocs
 ```
 
 ### Для разработки (симлинк)
 
 ```bash
-git clone https://github.com/borzov/gen-docs.git ~/Develop/gen-docs
-ln -s ~/Develop/gen-docs/skills/gen-docs ~/.claude/skills/gen-docs
+git clone https://github.com/borzov/gostdocs.git ~/Develop/gostdocs
+ln -s ~/Develop/gostdocs/skills/gostdocs ~/.claude/skills/gostdocs
 ```
 
 ## Зависимости
@@ -67,7 +67,7 @@ Docker нужен, если хотите автоматически подним
 Откройте проект в Claude Code и введите:
 
 ```
-/gen-docs
+/gostdocs
 ```
 
 Скилл задаст несколько вопросов: какие документы генерировать, режим ГОСТ (строгий или облегчённый), путь к ТЗ, URL приложения для скриншотов. Если в приложении есть закрытые разделы, скилл попросит учётные данные для каждой роли (admin, user и т.д.) и сделает отдельный набор скриншотов для каждой из них. После этого запустит субагентов для анализа кода и спецификаций и сгенерирует документы.
@@ -137,7 +137,7 @@ docs/
 Стили DOCX задаются через файлы `templates/reference-strict.docx` и `templates/reference-lite.docx`. Можно отредактировать их вручную в Word (изменить стили Heading 1–4, Normal, Caption) или пересоздать скриптом:
 
 ```bash
-cd skills/gen-docs
+cd skills/gostdocs
 python3 scripts/setup-reference-docx.py templates/
 ```
 
@@ -146,7 +146,7 @@ python3 scripts/setup-reference-docx.py templates/
 Через маркетплейс:
 
 ```
-/plugin update gen-docs
+/plugin update gostdocs
 ```
 
 При ручной установке — `git pull` и повторное копирование. При симлинке достаточно `git pull`.
@@ -154,8 +154,8 @@ python3 scripts/setup-reference-docx.py templates/
 ## Структура проекта
 
 ```
-gen-docs/
-├── skills/gen-docs/
+gostdocs/
+├── skills/gostdocs/
 │   ├── SKILL.md                     # Скилл-оркестратор
 │   ├── templates/
 │   │   ├── gost-strict/             # Шаблоны строгого ГОСТ

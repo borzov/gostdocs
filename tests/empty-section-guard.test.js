@@ -1,7 +1,7 @@
 'use strict';
 
-const dm = require('../skills/gen-docs/scripts/lib/doc-model');
-const guard = require('../skills/gen-docs/scripts/lib/empty-section-guard');
+const dm = require('../skills/gostdocs/scripts/lib/doc-model');
+const guard = require('../skills/gostdocs/scripts/lib/empty-section-guard');
 
 function buildDocWithEmptyLeaf() {
   const doc = dm.newDocument({ title: 'T', lang: 'ru-RU' });

@@ -1,6 +1,6 @@
 'use strict';
 
-const rolesSection = require('../skills/gen-docs/scripts/lib/roles-section');
+const rolesSection = require('../skills/gostdocs/scripts/lib/roles-section');
 
 describe('labelFor', () => {
   test('uses the localized label for known slugs', () => {

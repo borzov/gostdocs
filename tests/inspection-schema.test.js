@@ -1,4 +1,4 @@
-const schema = require('../skills/gen-docs/scripts/lib/inspection-schema');
+const schema = require('../skills/gostdocs/scripts/lib/inspection-schema');
 
 describe('empty + validate', () => {
   test('empty record validates', () => {

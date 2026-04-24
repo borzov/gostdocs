@@ -1,4 +1,4 @@
-const routes = require('../skills/gen-docs/scripts/lib/routes');
+const routes = require('../skills/gostdocs/scripts/lib/routes');
 
 describe('parseRoute', () => {
   test('extracts :param (colon syntax)', () => {

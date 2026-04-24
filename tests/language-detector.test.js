@@ -1,6 +1,6 @@
 'use strict';
 
-const { detect, matchesTargetLanguage } = require('../skills/gen-docs/scripts/lib/language-detector');
+const { detect, matchesTargetLanguage } = require('../skills/gostdocs/scripts/lib/language-detector');
 
 describe('detect', () => {
   test('pure Cyrillic text returns dominant=cyrillic', () => {

@@ -1,4 +1,4 @@
-const { scrapeId, looksLikeId, idFromHref } = require('../skills/gen-docs/scripts/lib/list-scrape');
+const { scrapeId, looksLikeId, idFromHref } = require('../skills/gostdocs/scripts/lib/list-scrape');
 
 describe('looksLikeId', () => {
   test('accepts numeric ids', () => {

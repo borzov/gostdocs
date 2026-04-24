@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to gen-docs are documented here.
+All notable changes to GOSTDocs are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [SemVer](https://semver.org/) — PATCH for fixes, MINOR for features, MAJOR for breaking meta.yaml changes.
 
@@ -291,7 +291,7 @@ for the full phased plan and acceptance criteria.
 ### Phase 1 — Foundation (earlier in this release)
 
 #### Added
-- Isolated skill sandbox: `skills/gen-docs/package.json` with pinned `playwright@1.59.1`,
+- Isolated skill sandbox: `skills/gostdocs/package.json` with pinned `playwright@1.59.1`,
   `zod@3.23.8`, `yaml@2.6.1`; `node_modules/` and browser cache live inside the skill
 - `scripts/bootstrap.js` — idempotent `npm ci` + `playwright install chromium`
   into `.playwright-cache/`; `--check` exits 0 only when runtime is ready

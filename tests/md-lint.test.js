@@ -1,4 +1,4 @@
-const { lintMarkdown, countWords, sectionSplit } = require('../skills/gen-docs/scripts/lib/md-lint');
+const { lintMarkdown, countWords, sectionSplit } = require('../skills/gostdocs/scripts/lib/md-lint');
 
 describe('countWords', () => {
   test('counts markdown-stripped words', () => {

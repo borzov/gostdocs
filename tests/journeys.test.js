@@ -2,10 +2,10 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const journeys = require('../skills/gen-docs/scripts/lib/journeys');
+const journeys = require('../skills/gostdocs/scripts/lib/journeys');
 
 function tmpFile(contents) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gen-docs-j-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gostdocs-j-'));
   const file = path.join(dir, 'journeys.yaml');
   fs.writeFileSync(file, contents, 'utf8');
   return file;

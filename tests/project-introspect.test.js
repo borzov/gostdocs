@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const introspect = require('../skills/gen-docs/scripts/lib/project-introspect');
+const introspect = require('../skills/gostdocs/scripts/lib/project-introspect');
 
 function makeTmpProject(layout = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'introspect-'));

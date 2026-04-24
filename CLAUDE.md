@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repo is
 
-A **Claude Code skill** (not an application) that generates GOST-compliant documentation — user/admin/operator guides and technical descriptions — for information systems. It is shipped as a plugin and installed under `~/.claude/skills/gen-docs/`. Active rework: **v0.3** replaces the linear 4-phase flow with a 7-phase graph; legacy v0.2 `screenshot.js` is kept as fallback until the new `capture.js` path is validated end-to-end.
+A **Claude Code skill** (not an application) that generates GOST-compliant documentation — user/admin/operator guides and technical descriptions — for information systems. It is shipped as a plugin and installed under `~/.claude/skills/gostdocs/`. Active rework: **v0.3** replaces the linear 4-phase flow with a 7-phase graph; legacy v0.2 `screenshot.js` is kept as fallback until the new `capture.js` path is validated end-to-end.
 
-The "app" is the skill runtime under `skills/gen-docs/`; the repo root mostly hosts tests, docs, and the outer `package.json` that delegates to it.
+The "app" is the skill runtime under `skills/gostdocs/`; the repo root mostly hosts tests, docs, and the outer `package.json` that delegates to it.
 
 ## Commands
 
@@ -14,10 +14,10 @@ All commands run from the repo root unless noted. `pretest` auto-runs bootstrap 
 
 ```bash
 # One-time runtime sandbox install (pinned Playwright + Chromium + mmdc + zod + yaml
-# into skills/gen-docs/node_modules and skills/gen-docs/.playwright-cache)
+# into skills/gostdocs/node_modules and skills/gostdocs/.playwright-cache)
 npm run bootstrap                      # install if missing
-node skills/gen-docs/scripts/bootstrap.js --force   # force reinstall
-node skills/gen-docs/scripts/bootstrap.js --check   # exit 0 if ready
+node skills/gostdocs/scripts/bootstrap.js --force   # force reinstall
+node skills/gostdocs/scripts/bootstrap.js --check   # exit 0 if ready
 
 # Tests
 npm test                               # Jest — all JS tests under tests/**/*.test.js
@@ -27,24 +27,24 @@ npm run test:py                        # pytest — Python postprocess tests
 pytest tests/postprocess_test.py       # single Python test file
 
 # Pipeline entry scripts (each phase is independently runnable)
-node skills/gen-docs/scripts/precheck.js      --config docs/meta.yaml
-node skills/gen-docs/scripts/research.js      --config docs/meta.yaml
-node skills/gen-docs/scripts/plan-capture.js  --config docs/meta.yaml
-node skills/gen-docs/scripts/capture.js       --config docs/meta.yaml
-node skills/gen-docs/scripts/ui-inspector.js  --config docs/meta.yaml
-node skills/gen-docs/scripts/generate.js      --config docs/meta.yaml --only user-guide
+node skills/gostdocs/scripts/precheck.js      --config docs/meta.yaml
+node skills/gostdocs/scripts/research.js      --config docs/meta.yaml
+node skills/gostdocs/scripts/plan-capture.js  --config docs/meta.yaml
+node skills/gostdocs/scripts/capture.js       --config docs/meta.yaml
+node skills/gostdocs/scripts/ui-inspector.js  --config docs/meta.yaml
+node skills/gostdocs/scripts/generate.js      --config docs/meta.yaml --only user-guide
 ```
 
 Shared CLI flags across entry scripts: `--yes`, `--only <phase|doc>`, `--skip-screenshots`, `--rerun-screenshots <role>`, `--dry-run`, `--live-db`, `--vision-provider claude|openai`, `--lang ru,en`. Parsed uniformly by `scripts/lib/cli.js`.
 
-The skill is normally driven by the `SKILL.md` orchestrator (invoked as `/gen-docs` inside Claude Code), not by calling these scripts directly.
+The skill is normally driven by the `SKILL.md` orchestrator (invoked as `/gostdocs` inside Claude Code), not by calling these scripts directly.
 
 ## Architecture
 
 ### Two-package layout
 
 - **`/package.json`** — dev-only (`jest`, `playwright` for test doubles). Do not add runtime deps here.
-- **`/skills/gen-docs/package.json`** — the skill's self-contained runtime sandbox (`@mermaid-js/mermaid-cli`, `playwright`, `yaml`, `zod`). Installed once by `bootstrap.js` into `skills/gen-docs/node_modules/`. Puppeteer is overridden to reuse Playwright's Chromium so we don't double-download a browser. Library code imports deps via a local helper (`require(path.resolve(__dirname, '..', '..', 'node_modules', name))`) — keep this pattern when adding new lib files, don't reach up to the repo-root `node_modules`.
+- **`/skills/gostdocs/package.json`** — the skill's self-contained runtime sandbox (`@mermaid-js/mermaid-cli`, `playwright`, `yaml`, `zod`). Installed once by `bootstrap.js` into `skills/gostdocs/node_modules/`. Puppeteer is overridden to reuse Playwright's Chromium so we don't double-download a browser. Library code imports deps via a local helper (`require(path.resolve(__dirname, '..', '..', 'node_modules', name))`) — keep this pattern when adding new lib files, don't reach up to the repo-root `node_modules`.
 
 ### v0.3 pipeline
 
@@ -113,4 +113,4 @@ Translate the Doc-Model JSON once and render per language with a shared `_glossa
 - `ROADMAP.md` — phase-by-phase acceptance criteria, locked decisions (vision provider, mermaid fallback, journeys-in-separate-file, pg_dump fallback, strict-vs-lite validator policy).
 - `TASKS-v0.3-remaining.md` — current spec for Phase 6C / 7B / 8B work.
 - `CHANGELOG.md` — per-phase changes for v0.3.0-dev.
-- `skills/gen-docs/SKILL.md` — the skill orchestrator itself; authoritative description of GEN:* directive catalog, research subagent contract, and pandoc invocation.
+- `skills/gostdocs/SKILL.md` — the skill orchestrator itself; authoritative description of GEN:* directive catalog, research subagent contract, and pandoc invocation.

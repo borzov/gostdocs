@@ -2,10 +2,10 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const scanner = require('../skills/gen-docs/scripts/adapters/role-discovery/scanner');
+const scanner = require('../skills/gostdocs/scripts/adapters/role-discovery/scanner');
 
 function tmpProject() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'gen-docs-scan-'));
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'gostdocs-scan-'));
 }
 
 function write(root, relative, content) {

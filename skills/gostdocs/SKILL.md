@@ -1,9 +1,9 @@
 ---
-name: gen-docs
+name: gostdocs
 description: Use when the user needs to generate formal documentation for an information system — user guides, admin guides, operator guides, or technical descriptions. Triggers on requests for GOST-compliant documentation, system manuals, or operational documentation with automatic screenshots.
 ---
 
-# gen-docs: GOST-Compliant Documentation Generator
+# GOSTDocs: GOST-Compliant Documentation Generator
 
 Generate formal documentation for information systems with automatic screenshots, following Russian GOST standards (RD 50-34.698-90, GOST 34.201-89, GOST R 59795-2021). **v0.3.0-dev**
 
@@ -33,7 +33,7 @@ across runs unless inputs change.
 ## Sandbox and dependencies
 
 The skill is self-contained. Runtime dependencies (Playwright + browser) live
-under `skills/gen-docs/node_modules/` and `skills/gen-docs/.playwright-cache/`,
+under `skills/gostdocs/node_modules/` and `skills/gostdocs/.playwright-cache/`,
 installed once by `bootstrap.js`. The skill never relies on globally installed
 Playwright or Chromium.
 

@@ -10,7 +10,7 @@ const {
   probeRoutes,
   authenticate,
   captureRoleScreenshots,
-} = require('../skills/gen-docs/scripts/screenshot');
+} = require('../skills/gostdocs/scripts/screenshot');
 
 // ---------------------------------------------------------------------------
 // autoDetectFormFields

@@ -1,4 +1,4 @@
-const { buildPrompt, componentExtras, roleHint } = require('../skills/gen-docs/scripts/lib/inspection-prompt');
+const { buildPrompt, componentExtras, roleHint } = require('../skills/gostdocs/scripts/lib/inspection-prompt');
 
 describe('buildPrompt', () => {
   test('ru by default', () => {

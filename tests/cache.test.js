@@ -2,10 +2,10 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const cache = require('../skills/gen-docs/scripts/lib/cache');
+const cache = require('../skills/gostdocs/scripts/lib/cache');
 
 function tmpRoot() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'gen-docs-cache-'));
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'gostdocs-cache-'));
 }
 
 describe('stableStringify + computeHash', () => {

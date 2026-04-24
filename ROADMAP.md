@@ -1,4 +1,4 @@
-# gen-docs v0.3 — Roadmap
+# GOSTDocs v0.3 — Roadmap
 
 Working plan for the rework from v0.2 (linear 4-phase) to v0.3 (7-phase graph with structured intermediates).
 All phases must stay stack-agnostic: project-specific logic lives in adapters with autodetect and manual override.
@@ -44,7 +44,7 @@ Between research/inspection and Markdown: structured JSON (sections, paragraphs,
 
 Maps to user categories: 5.1, 5.2, 5.3, 6.3, 7.1.
 
-- [x] skill-level `skills/gen-docs/package.json` with pinned runtime deps (playwright, zod, yaml)
+- [x] skill-level `skills/gostdocs/package.json` with pinned runtime deps (playwright, zod, yaml)
 - [x] `scripts/bootstrap.js` - npm ci + playwright install inside skill sandbox, idempotent
 - [x] `scripts/precheck.js` - env / app / API / roles / min-entities, blocking with concrete remediation
 - [x] `scripts/lib/meta.js` - Zod schema for v0.3 meta.yaml + v0.2 migration

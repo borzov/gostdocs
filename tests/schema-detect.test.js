@@ -2,10 +2,10 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const detect = require('../skills/gen-docs/scripts/adapters/schema/detect');
+const detect = require('../skills/gostdocs/scripts/adapters/schema/detect');
 
 function tmpProject() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'gen-docs-sd-'));
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'gostdocs-sd-'));
 }
 
 function touch(root, relative, content = '') {

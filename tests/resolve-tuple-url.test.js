@@ -1,6 +1,6 @@
 'use strict';
 
-const { resolveTupleUrl } = require('../skills/gen-docs/scripts/capture');
+const { resolveTupleUrl } = require('../skills/gostdocs/scripts/capture');
 
 const metaData = { app: { url: 'http://app.test' } };
 

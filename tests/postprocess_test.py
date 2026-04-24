@@ -1,4 +1,4 @@
-"""Pytest suite for skills/gen-docs/scripts/postprocess-docx.py.
+"""Pytest suite for skills/gostdocs/scripts/postprocess-docx.py.
 
 Covers the post-processing invariants added in Phase 6C:
 
@@ -23,7 +23,7 @@ from docx.oxml.ns import qn
 _SPEC_PATH = (
     Path(__file__).resolve().parent.parent
     / "skills"
-    / "gen-docs"
+    / "gostdocs"
     / "scripts"
     / "postprocess-docx.py"
 )
