@@ -51,6 +51,7 @@ const pageNarrative = require('./lib/page-narrative');
 const projectIntrospect = require('./lib/project-introspect');
 const mermaidAdapter = require('./adapters/mermaid');
 const openapiAdapter = require('./adapters/openapi');
+const diagramsLib = require('./lib/diagrams');
 const bootstrapExports = require('./bootstrap');
 
 const DEFAULT_TEMPLATE_ROOT = path.join(bootstrapExports.SKILL_DIR, 'templates');
@@ -406,16 +407,58 @@ function buildExpanders(ctx) {
 
     mermaid: async (attrs) => {
       let source = extractMermaidSourceFromResearch(attrs.source, ctx.researchMd);
-      // Automatic fallback: synthesize an ERD from the schema when the
-      // template asked for an "erd"/"er-diagram" but no hand-written
-      // diagram shipped with the research corpus. This gives
-      // technical-description a real entity-relationship diagram even
-      // on projects whose subagents did not emit an .mmd file.
-      if (!source && /^(erd|er[-_]?diagram|entity[-_]?relationship)$/i.test(attrs.source || '')) {
+      // Automatic fallback: synthesize a diagram when the template asked
+      // for one of the well-known sources but no hand-written diagram
+      // shipped with the research corpus. Each synthesiser returns null
+      // when the input research is too sparse to build a meaningful image,
+      // and in that case we fall back to the generic "source missing"
+      // warning so the reader gets an explicit placeholder instead of a
+      // misleading half-empty diagram.
+      const sourceKey = String(attrs.source || '').toLowerCase();
+      if (!source && /^(erd|er[-_]?diagram|entity[-_]?relationship)$/.test(sourceKey)) {
         const synthesised = ctx.schema ? schemaModel.buildErdMermaid(ctx.schema) : null;
         if (synthesised) {
           source = synthesised;
-          pushWarning(ctx, 'mermaid', `ERD synthesised from schema.summary.json for source="${attrs.source}"`);
+          pushWarning(ctx, 'mermaid', `ERD synthesised from schema for source="${attrs.source}"`);
+        }
+      }
+      if (!source && /^(auth|auth[-_]?sequence|login[-_]?sequence)$/.test(sourceKey)) {
+        const scan = ctx.securityScan || securityScan.scanSecurity(ctx.projectPath);
+        ctx.securityScan = scan;
+        const synthesised = diagramsLib.buildAuthSequenceMermaid(scan, { lang: ctx.lang });
+        if (synthesised) {
+          source = synthesised;
+          pushWarning(ctx, 'mermaid', `auth sequence synthesised from security scan for source="${attrs.source}"`);
+        }
+      }
+      if (!source && /^(component|component[-_]?diagram|components|topology)$/.test(sourceKey)) {
+        const scalingScanResult = ctx.scalingScan || scalingScan.scanScaling(ctx.projectPath);
+        ctx.scalingScan = scalingScanResult;
+        const securityScanResult = ctx.securityScan || securityScan.scanSecurity(ctx.projectPath);
+        ctx.securityScan = securityScanResult;
+        const protocolRows = ctx.protocolsScanRows
+          || (ctx.protocolsScanRows = protocolsScan.scanProtocols(ctx.projectPath, { lang: ctx.lang }));
+        const synthesised = diagramsLib.buildComponentDiagramMermaid({
+          stack: ctx.stack || null,
+          scalingScan: scalingScanResult,
+          securityScan: securityScanResult,
+          protocolsScan: protocolRows,
+        }, { lang: ctx.lang });
+        if (synthesised) {
+          source = synthesised;
+          pushWarning(ctx, 'mermaid', `component diagram synthesised for source="${attrs.source}"`);
+        }
+      }
+      if (!source && /^(dataflow|data[-_]?flow)$/.test(sourceKey)) {
+        const protocolRows = ctx.protocolsScanRows
+          || (ctx.protocolsScanRows = protocolsScan.scanProtocols(ctx.projectPath, { lang: ctx.lang }));
+        const synthesised = diagramsLib.buildDataFlowMermaid({
+          schema: ctx.schema,
+          protocolsScan: protocolRows,
+        }, { lang: ctx.lang });
+        if (synthesised) {
+          source = synthesised;
+          pushWarning(ctx, 'mermaid', `data-flow diagram synthesised for source="${attrs.source}"`);
         }
       }
       if (!source) {

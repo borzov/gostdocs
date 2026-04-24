@@ -342,7 +342,19 @@ async function captureGroup({ browser, metaData, tuples, authCtxCache, manifest,
       // Per-page interactions (FAQ accordion expansion, search field fill,
       // filter button click) run BEFORE actions so the action-driven multi-
       // shot loop sees the prepared state.
-      const interactionSteps = interactions.interactionsToActionSteps(tuple.interactions);
+      //
+      // A page that declares `show_filter_demo: true` in meta.yaml gets an
+      // auto-generated search demo prepended here so the documentation
+      // includes a "filter in action" screenshot without hand-written
+      // selectors. The demo returns action-executor steps directly (no
+      // translation needed); explicit interactions still run afterwards.
+      const autoFilterSteps = tuple.showFilterDemo
+        ? interactions.buildFilterInteractionsForList({ sample: tuple.filterSample, waitMs: tuple.filterWaitMs })
+        : [];
+      const interactionSteps = [
+        ...autoFilterSteps,
+        ...interactions.interactionsToActionSteps(tuple.interactions),
+      ];
       if (interactionSteps.length > 0) {
         const ir = await actionExecutor.executeActions(page, interactionSteps, {
           dismissFn: (selectors) => dismiss.applyDismiss(page, selectors),

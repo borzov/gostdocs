@@ -58,6 +58,10 @@ function planResolution(pageCfg) {
   const missing = parsed.params
     .filter((p) => p.required && explicit[p.name] === undefined)
     .map((p) => p.name);
+  // `sample_size` lets the user ask for several resolved IDs so the capture
+  // phase produces one screenshot per detail instance (e.g. three different
+  // event cards). Clamp to [1, 10] — beyond that diminishing returns.
+  const sampleSize = Math.max(1, Math.min(10, Number(pageCfg.sample_size) || 1));
 
   /** @type {ResolveStep[]} */
   const steps = [];
@@ -71,8 +75,9 @@ function planResolution(pageCfg) {
     if (collection) {
       steps.push({
         kind: 'collection',
-        endpoint: `${collection}?limit=1`,
+        endpoint: `${collection}?limit=${sampleSize}`,
         idPath: 'data.0.id',
+        sampleSize,
       });
     }
     steps.push({
@@ -80,6 +85,7 @@ function planResolution(pageCfg) {
       listRoute: pageCfg.list_endpoint || routes.inferCollectionPath(pageCfg.path) || '/',
       rowSelector: pageCfg.list_selector || '[data-id], tr[data-id], a[href*="/"]',
       idAttribute: pageCfg.id_attribute || 'data-id',
+      sampleSize,
     });
   }
 
@@ -87,6 +93,7 @@ function planResolution(pageCfg) {
     pageId: pageCfg.id || pageCfg.path,
     template: pageCfg.path,
     missingParams: missing,
+    sampleSize,
     steps,
   };
 }
@@ -143,8 +150,42 @@ function extractIdFromBody(body, idPath) {
   return null;
 }
 
+/**
+ * Return up to `count` ids from a collection response. Used when a page
+ * declares `sample_size > 1` so we capture several detail instances.
+ *
+ * @param {unknown} body
+ * @param {number} [count=1]
+ * @returns {Array<string|number>}
+ */
+function extractIdsFromBody(body, count = 1) {
+  const n = Math.max(1, Number(count) || 1);
+  const candidates = [];
+  if (Array.isArray(body)) candidates.push(body);
+  if (body && typeof body === 'object') {
+    for (const key of ['data', 'results', 'items', 'rows', 'records']) {
+      if (Array.isArray(body[key])) candidates.push(body[key]);
+    }
+  }
+  const out = [];
+  for (const list of candidates) {
+    for (const row of list) {
+      if (out.length >= n) return out;
+      for (const key of ['id', 'uuid', 'slug', 'pk']) {
+        if (row && row[key] !== undefined && row[key] !== null) {
+          out.push(row[key]);
+          break;
+        }
+      }
+    }
+    if (out.length >= n) break;
+  }
+  return out;
+}
+
 module.exports = {
   planResolution,
   readPath,
   extractIdFromBody,
+  extractIdsFromBody,
 };

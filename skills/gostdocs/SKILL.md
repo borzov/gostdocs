@@ -681,6 +681,9 @@ node scripts/generate.js --config docs/meta.yaml --lang ru,en
 |---|---|---|
 | `GEN:metadata key="organization"` | `metadata-autofill.merge` | Paragraph from `meta.metadata` or derived fields |
 | `GEN:mermaid source="architecture" title="…"` | `adapters/mermaid.renderToDocModelElement` | PNG figure rendered via local mmdc, centered by postprocess |
+| `GEN:mermaid source="component"` | `lib/diagrams.buildComponentDiagramMermaid` | Auto-synthesised `graph TB` of client/LB/server/auth/cache/DB from scaling + protocols + security scans |
+| `GEN:mermaid source="auth-sequence"` | `lib/diagrams.buildAuthSequenceMermaid` | Auto-synthesised login sequenceDiagram (user → client → server → token store) when JWT or session auth is detected |
+| `GEN:mermaid source="dataflow"` | `lib/diagrams.buildDataFlowMermaid` | Auto-synthesised `graph LR` from action → form/API → server → ORM → storage (first 5 tables) |
 | `GEN:db-schema scope="all" headingLevel="3"` | `lib/schema-model.buildMarkdown` | Markdown tables per DB table with FKs + indexes |
 | `GEN:endpoints-detail headingLevel="3"` | `adapters/openapi.buildMarkdown` | Per-endpoint documentation (parameters, request body, responses) grouped by tag. Reads `_research/openapi.json` — silent no-op if the research step produced no OpenAPI document |
 | `GEN:journey role="user"` | `lib/journey-render.renderJourneysSection` | Numbered step sequences with figures per journeys.yaml |
@@ -808,6 +811,16 @@ Each entry under `pages:` accepts new optional fields:
   Use this for FAQ accordion expansion, search field fill, filter buttons.
 - `section: public|personal|admin` — informational grouping label, available
   to template authors who want to split `page-description` blocks.
+- `show_filter_demo: true` — capture phase auto-generates a search-input
+  demo step (`buildFilterInteractionsForList`) before the screenshot. The
+  helper chains the common CSS selectors for `input[type=search]`,
+  `input[placeholder*="Поиск"]`, `input[role=searchbox]` etc., so no per-app
+  selector is required. Pair with `filter_sample: "…"` to override the
+  typed text and `filter_wait_ms: 800` to extend the debounce delay.
+- `sample_size: 3` — for parametrized routes like `/events/:id`, resolve
+  three different IDs via the id-resolver (explicit → `GET …?limit=3` →
+  list_scrape) and emit three detail-page screenshots so dynamic content
+  is demonstrated with multiple real records instead of a single row.
 
 Mustache-style substitutions like `{system_name}` are discouraged — use
 `<!-- GEN:metadata key="system_name" -->` so the value travels through the

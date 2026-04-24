@@ -38,6 +38,14 @@ composer.json / requirements.txt / go.mod / docker-compose. При
 
 <!-- GEN:mermaid source="architecture" title="Общая архитектура системы" -->
 
+## Схема компонентов
+
+<!-- GEN:mermaid source="component" title="Компонентная схема системы" -->
+
+## Поток данных
+
+<!-- GEN:mermaid source="dataflow" title="Поток данных через компоненты" -->
+
 ## Описание компонентов
 
 <!-- AGENT: For EACH component/service in the system, provide:
@@ -68,6 +76,10 @@ MUST include:
 ### Схема взаимодействия для типовой операции
 
 <!-- GEN:mermaid source="sequence" title="Последовательность операций" -->
+
+### Схема аутентификации
+
+<!-- GEN:mermaid source="auth-sequence" title="Последовательность аутентификации пользователя" -->
 
 ### Протоколы и форматы данных
 

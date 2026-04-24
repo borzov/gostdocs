@@ -25,7 +25,9 @@ const manifest = require('./manifest');
 
 /** @typedef {{ id: string, path: string, name?: string, title?: string, fullPage?: boolean,
  *              apply_states?: boolean, actions?: any, component_kind?: string,
- *              parametrize?: Record<string, unknown> }} PageCfg */
+ *              parametrize?: Record<string, unknown>,
+ *              show_filter_demo?: boolean, filter_sample?: string, filter_wait_ms?: number,
+ *              sample_size?: number }} PageCfg */
 
 /** @typedef {{ role: string, credentials: null | Record<string, unknown>, [k:string]: any }} RoleCfg */
 
@@ -140,6 +142,10 @@ function buildMatrix(input) {
                 parametrize: page.parametrize || null,
                 query_params: page.query_params || null,
                 interactions: page.interactions || null,
+                showFilterDemo: Boolean(page.show_filter_demo),
+                filterSample: page.filter_sample || null,
+                filterWaitMs: Number(page.filter_wait_ms) || 0,
+                sampleSize: Math.max(1, Number(page.sample_size) || 1),
                 section: page.section || null,
                 access,
                 file: filename,

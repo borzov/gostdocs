@@ -72,8 +72,40 @@ function interactionsToActionSteps(interactions) {
   return out;
 }
 
+/**
+ * Build a sequence of action-executor steps that demonstrate the filter /
+ * search behaviour of a list page WITHOUT the author having to hand-write
+ * selectors. The steps chain the common CSS selectors used by React / Vue
+ * / Laravel admin panels and GOST consumer portals into one comma-separated
+ * pattern — the capture executor picks the first selector that exists on
+ * the page, fills it with `sample` text, and waits for the UI to debounce
+ * the filter query before the screenshot fires.
+ *
+ * @param {{ sample?: string, waitMs?: number }} [opts]
+ * @returns {Array<Record<string, unknown>>}
+ */
+function buildFilterInteractionsForList(opts = {}) {
+  const sample = opts.sample == null ? 'test' : String(opts.sample);
+  const waitMs = Number(opts.waitMs) > 0 ? Number(opts.waitMs) : 600;
+  const selector = [
+    'input[type="search"]',
+    'input[name*="search" i]',
+    'input[placeholder*="Поиск" i]',
+    'input[placeholder*="Search" i]',
+    'input[aria-label*="Поиск" i]',
+    'input[aria-label*="Search" i]',
+    'input[role="searchbox"]',
+  ].join(', ');
+  return [
+    { wait_for: selector },
+    { fill: { [selector]: sample } },
+    { wait_ms: waitMs },
+  ];
+}
+
 module.exports = {
   buildUrlWithQuery,
   interactionToActionStep,
   interactionsToActionSteps,
+  buildFilterInteractionsForList,
 };

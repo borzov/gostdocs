@@ -75,6 +75,20 @@ const pageSchema = z.object({
   // Steps to execute after page.goto() and before screenshot — open
   // accordions, fill form fields, click filters, wait for animations, etc.
   interactions: z.array(interactionStepSchema).optional(),
+  // Auto-filter demo: when true, the capture phase prepends a typed-search
+  // interaction using a common set of selectors before the screenshot, so
+  // the documentation shows the filter responding to a keystroke without
+  // the author having to list each selector by hand.
+  show_filter_demo: z.boolean().optional(),
+  // Custom search term to type when `show_filter_demo` is on (default: "test").
+  filter_sample: z.string().optional(),
+  // Milliseconds to wait after typing so the UI debounce settles before the
+  // screenshot fires (default: 600).
+  filter_wait_ms: z.number().int().min(0).optional(),
+  // How many distinct detail instances to capture for parametrized routes.
+  // With `sample_size: 3` and `path: /events/:id`, the planner resolves three
+  // different IDs and emits three screenshots (`/events/42`, `/events/43`, …).
+  sample_size: z.number().int().min(1).max(10).optional(),
 });
 
 const roleSchema = z.object({
