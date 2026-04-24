@@ -822,6 +822,36 @@ Each entry under `pages:` accepts new optional fields:
   list_scrape) and emit three detail-page screenshots so dynamic content
   is demonstrated with multiple real records instead of a single row.
 
+### Picking good filter_sample / parametrize values
+
+Auto-filter demos and detail-page captures produce much better documentation
+when the typed query or resolved ID hits real content. When the orchestrator
+has access to the running application, prefer real data over `"test"`:
+
+- If `--live-db` is available, read a representative value from the target
+  table before planning capture. Example query patterns:
+
+  ```sql
+  -- title-like column (first non-empty value)
+  SELECT title FROM events WHERE title <> '' ORDER BY created_at DESC LIMIT 1;
+  -- short identifier to exercise a search index
+  SELECT id FROM events ORDER BY created_at DESC LIMIT 3;
+  ```
+
+  Feed the results into `meta.pages[].filter_sample` and/or `parametrize`.
+
+- Without direct DB access, call the same HTTP endpoint the id-resolver
+  would use (`GET /api/events?limit=3`) and pick `data[].id` / `data[].title`
+  from the JSON payload.
+
+- As a last resort, read seed files (`seed.sql`, `seeds/*.yaml`, Laravel
+  `database/seeders/*`, Django fixtures) to find a known record that is
+  guaranteed to be present in the local dataset.
+
+This keeps the skill stack-agnostic: the orchestrator is responsible for
+discovering a realistic value, but the capture infrastructure knows what to
+do with it once provided.
+
 Mustache-style substitutions like `{system_name}` are discouraged — use
 `<!-- GEN:metadata key="system_name" -->` so the value travels through the
 merged-metadata pipeline.
