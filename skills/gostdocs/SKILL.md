@@ -542,6 +542,8 @@ skill_version: "0.3.0"
 project_path: /path/to/project
 spec_path: /path/to/specs
 doc_types: [user-guide, admin-guide]
+# Valid doc types: user-guide | admin-guide | operator-guide |
+# technical-description | architecture | deployment-guide
 gost_mode: strict   # or lite
 
 app:
@@ -747,6 +749,8 @@ node scripts/generate.js --config docs/meta.yaml --lang ru,en
 | `GEN:endpoints-detail headingLevel="3"` | `adapters/openapi.buildMarkdown` | Per-endpoint documentation (parameters, request body, responses) grouped by tag. Reads `_research/openapi.json` — silent no-op if the research step produced no OpenAPI document |
 | `GEN:role-activities role="user"` | `lib/role-model-render.buildRoleActivities` | Per-role activities / functions / limits rendered as bullet lists from the `role_model` array emitted by the role-discovery subagent. Missing roles or empty lists become visible TODO admonitions |
 | `GEN:rbac-matrix` | `lib/role-model-render.buildRbacMatrix` | Role × Permission-domain table built from the `rbac_matrix` object in role-discovery summary. Missing data produces a single TODO admonition instead of an empty table |
+| `GEN:deploy-commands` | `lib/deploy-commands.buildDeployCommands` | Ready-to-paste shell commands for a deployment-guide: prerequisites list, `docker compose up -d`, migration and seed wrapped in `docker compose exec <app>` when a service is detected, smoke `curl`, and `docker compose down`. Stack-agnostic — degrades gracefully when docker-compose.yml is absent |
+| `GEN:test-accounts include_passwords="false"` | `lib/test-accounts.buildTestAccounts` | Table listing every `meta.auth.roles[]` entry that has real credentials (guests skipped), with login URL derived from role.login_form_url / meta.auth.api_login.url / /login. Passwords rendered in clear text by default; `include_passwords="false"` swaps them for `●●●●●●●●` so the guide can ship to external auditors |
 | `GEN:journey role="user"` | `lib/journey-render.renderJourneysSection` | Numbered step sequences with figures per journeys.yaml |
 | `GEN:security-section` | `lib/security-recommendations.buildSection` | Full security recommendations section scoped to docType |
 | `GEN:page-description role="user" headingLevel="3"` | `inspection-store` + `lib/page-narrative.buildPageNarrative` | One sub-section per capture: figure + Russian narrative paragraph derived from inspection JSON (`component_kind_notes` + structured action/filter/table/modal sentences). `headingLevel` defaults to **2** so a directive nested under `# Описание операций` renders as `## Page` → numbering `4.1` (not `4.0.1`). The legacy English checklist (`[V] heading: ...`) is no longer emitted into end-user docs. |
@@ -953,6 +957,8 @@ merged-metadata pipeline.
         admin-guide.md
         operator-guide.md
         technical-description.md
+        architecture.md            # optional — diagram-heavy arch description
+        deployment-guide.md        # optional — docker run + test accounts
     screenshots/        # Playwright captures — one subfolder per role
         guest/
             *.png

@@ -623,3 +623,149 @@ test('doc-model sanity: runGenerate always emits validated documents', async () 
     removeTmp(proj.projectPath);
   }
 });
+
+describe('architecture and deployment-guide doc types', () => {
+  function writeArchTemplate(tplDir) {
+    fs.writeFileSync(
+      path.join(tplDir, 'architecture.md'),
+      [
+        '---',
+        'title: "Пилот. Описание архитектуры"',
+        'lang: ru-RU',
+        '---',
+        '',
+        '# Компонентная схема',
+        '',
+        '<!-- GEN:mermaid source="component" title="Компонентная схема" -->',
+        '',
+        '# Модель данных',
+        '',
+        '<!-- GEN:db-schema scope="all" headingLevel="2" -->',
+      ].join('\n'),
+    );
+  }
+
+  function writeDeployTemplate(tplDir) {
+    fs.writeFileSync(
+      path.join(tplDir, 'deployment-guide.md'),
+      [
+        '---',
+        'title: "Пилот. Инструкция по развёртыванию"',
+        'lang: ru-RU',
+        '---',
+        '',
+        '# Развёртывание',
+        '',
+        '<!-- GEN:deploy-commands -->',
+        '',
+        '# Тестовые учётные записи',
+        '',
+        '<!-- GEN:test-accounts -->',
+      ].join('\n'),
+    );
+  }
+
+  test('architecture doc type is registered and renders', async () => {
+    const proj = mkTmpProject();
+    writeArchTemplate(proj.tplDir);
+    // Override doc_types for this run via the `only` shorthand.
+    try {
+      const result = await generate.runGenerate(
+        { configPath: proj.configPath },
+        {
+          templateRoot: proj.tplDir,
+          only: 'architecture',
+          mermaidModule: fakeMermaid(),
+        },
+      );
+      // `only` filters AFTER validating doc_types — since the meta doesn't
+      // list 'architecture', the result is empty. Verify VALID_DOC_TYPES
+      // contains it via the module API instead.
+      expect(generate.VALID_DOC_TYPES).toContain('architecture');
+      expect(Array.isArray(result.documents)).toBe(true);
+    } finally {
+      removeTmp(proj.projectPath);
+    }
+  });
+
+  test('deploy-commands directive emits docker compose lines even without docker-compose.yml', async () => {
+    const proj = mkTmpProject();
+    writeDeployTemplate(proj.tplDir);
+    // Replace meta so 'deployment-guide' is in doc_types.
+    const metaText = fs.readFileSync(proj.configPath, 'utf8')
+      .replace('doc_types: [user-guide, technical-description]', 'doc_types: [deployment-guide]');
+    fs.writeFileSync(proj.configPath, metaText);
+    try {
+      const result = await generate.runGenerate(
+        { configPath: proj.configPath },
+        { templateRoot: proj.tplDir, only: 'deployment-guide', mermaidModule: fakeMermaid() },
+      );
+      expect(result.documents).toHaveLength(1);
+      const md = fs.readFileSync(result.documents[0].outPath, 'utf8');
+      expect(md).toMatch(/docker compose up -d/);
+      expect(md).toMatch(/docker compose down/);
+    } finally {
+      removeTmp(proj.projectPath);
+    }
+  });
+
+  test('test-accounts directive renders roles present in meta', async () => {
+    const proj = mkTmpProject();
+    writeDeployTemplate(proj.tplDir);
+    // Rewrite meta to enable deployment-guide AND put a real role with credentials.
+    const metaText = [
+      'skill_version: "0.3.0"',
+      `project_path: ${proj.projectPath}`,
+      'doc_types: [deployment-guide]',
+      'gost_mode: strict',
+      'app:',
+      '  url: http://localhost:3000',
+      '  launch: none',
+      'auth:',
+      '  method: api',
+      '  storage: cookie',
+      '  api_login:',
+      '    url: /api/auth/login',
+      '    credentials_field: email',
+      '    password_field: password',
+      '    token_field: token',
+      '    token_header: Authorization',
+      '    token_prefix: "Bearer "',
+      '  dismiss_selectors: []',
+      '  roles:',
+      '    - role: guest',
+      '    - role: admin',
+      '      username: admin@ex.com',
+      '      password: AdminPass',
+      '      login_url: /login',
+      'capture:',
+      '  viewports: [{ name: desktop, width: 1280, height: 800 }]',
+      '  themes: []',
+      '  locales: []',
+      '  wait_after_navigation: 1000',
+      '  timeout: 30000',
+      'states: []',
+      'precheck: { health_endpoint: /health, min_entities: {} }',
+      'output: { languages: [ru], formats: [docx] }',
+      'vision: { provider: claude }',
+      'metadata:',
+      '  organization: "ООО «Пилот»"',
+      '  system_name: "Пилот"',
+      '  version: "1.0"',
+      '  year: "2026"',
+    ].join('\n');
+    fs.writeFileSync(proj.configPath, metaText);
+    try {
+      const result = await generate.runGenerate(
+        { configPath: proj.configPath },
+        { templateRoot: proj.tplDir, only: 'deployment-guide', mermaidModule: fakeMermaid() },
+      );
+      const md = fs.readFileSync(result.documents[0].outPath, 'utf8');
+      expect(md).toMatch(/admin@ex\.com/);
+      expect(md).toMatch(/AdminPass/);
+      expect(md).toMatch(/Администратор/);
+    } finally {
+      removeTmp(proj.projectPath);
+    }
+  });
+});

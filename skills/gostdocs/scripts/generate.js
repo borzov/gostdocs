@@ -54,6 +54,8 @@ const openapiAdapter = require('./adapters/openapi');
 const diagramsLib = require('./lib/diagrams');
 const roleModelRender = require('./lib/role-model-render');
 const titleNormalizer = require('./lib/title-normalizer');
+const deployCommands = require('./lib/deploy-commands');
+const testAccounts = require('./lib/test-accounts');
 const bootstrapExports = require('./bootstrap');
 
 const DEFAULT_TEMPLATE_ROOT = path.join(bootstrapExports.SKILL_DIR, 'templates');
@@ -62,6 +64,8 @@ const VALID_DOC_TYPES = [
   'admin-guide',
   'operator-guide',
   'technical-description',
+  'architecture',
+  'deployment-guide',
 ];
 
 const DOC_TITLES = {
@@ -70,12 +74,16 @@ const DOC_TITLES = {
     'admin-guide':           'Руководство администратора',
     'operator-guide':        'Руководство оператора',
     'technical-description': 'Техническое описание',
+    'architecture':          'Описание архитектуры',
+    'deployment-guide':      'Инструкция по развёртыванию',
   },
   en: {
     'user-guide':            'User Guide',
     'admin-guide':           'Administrator Guide',
     'operator-guide':        'Operator Guide',
     'technical-description': 'Technical Description',
+    'architecture':          'Architecture Description',
+    'deployment-guide':      'Deployment Guide',
   },
 };
 
@@ -394,6 +402,22 @@ function buildExpanders(ctx) {
         }
       }
       return roleModelRender.buildRbacMatrix(matrix, { lang: ctx.lang, roleLabels });
+    },
+
+    'deploy-commands': () => deployCommands.buildDeployCommands({
+      introspect: ctx.introspect || {},
+      meta: ctx.meta,
+    }, { lang: ctx.lang }),
+
+    'test-accounts': (attrs) => {
+      // include_passwords defaults to true for on-disk deployment guides
+      // since meta.yaml is already gitignored; the author can flip to
+      // include_passwords="false" to ship a redacted copy to auditors.
+      const includePasswords = !(attrs.include_passwords === 'false' || attrs.include_passwords === false);
+      return testAccounts.buildTestAccounts({ meta: ctx.meta }, {
+        lang: ctx.lang,
+        includePasswords,
+      });
     },
 
     'security-section': () => {
@@ -843,20 +867,29 @@ async function generateOne(docType, ctx, opts) {
     }
   }
 
-  // Security fallback — ensure every doc has a security section.
-  // Deep walk: template authors may nest `<!-- GEN:security-section -->`
-  // inside a sub-section; a shallow check would miss it and the fallback
-  // would push a second copy on top-level, producing visible duplicates.
-  const securitySlug = `security-${docType}`;
-  const hasSecurity = (function hasSectionBySlug(sections, slug) {
-    for (const s of sections || []) {
-      if (s.slug === slug) return true;
-      if (s.children && hasSectionBySlug(s.children, slug)) return true;
+  // Security fallback — ensure every doc that participates in the GOST
+  // guide family (user / admin / operator / technical-description) has a
+  // security section. Architecture and deployment docs opt in explicitly
+  // via `<!-- GEN:security-section -->` because their security content is
+  // focused (threat-model decisions, hardening checklist) and belongs in
+  // specific chapters rather than at the end of the document.
+  //
+  // Deep walk: template authors may nest the directive inside a sub-
+  // section; a shallow check would miss it and the fallback would push a
+  // second copy on top-level, producing visible duplicates.
+  const supportsSecurityFallback = security.VALID_DOC_TYPES.includes(docType);
+  if (supportsSecurityFallback) {
+    const securitySlug = `security-${docType}`;
+    const hasSecurity = (function hasSectionBySlug(sections, slug) {
+      for (const s of sections || []) {
+        if (s.slug === slug) return true;
+        if (s.children && hasSectionBySlug(s.children, slug)) return true;
+      }
+      return false;
+    })(doc.sections, securitySlug);
+    if (!hasSecurity) {
+      doc.sections.push(security.buildSection(docType, { lang: ctx.lang, level: 1 }));
     }
-    return false;
-  })(doc.sections, securitySlug);
-  if (!hasSecurity) {
-    doc.sections.push(security.buildSection(docType, { lang: ctx.lang, level: 1 }));
   }
 
   // Empty-section guard — insert placeholders and record strict blockers
