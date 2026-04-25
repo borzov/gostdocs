@@ -36,7 +36,7 @@ describe('migrate v0.2 -> v0.3', () => {
     expect(data.app).toEqual({ url: 'http://localhost:3000', launch: 'url' });
     expect(data.app_url).toBeUndefined();
     expect(log.some((l) => l.includes('app_url'))).toBe(true);
-    expect(data.skill_version).toBe('0.3.0');
+    expect(data.skill_version).toBe('1.0.0');
   });
 
   test('wraps auth_roles into auth.roles with form-login defaults', () => {
@@ -71,9 +71,9 @@ describe('migrate v0.2 -> v0.3', () => {
     expect(data.precheck).toEqual({ min_entities: {} });
   });
 
-  test('already-v0.3 meta is not touched', () => {
+  test('already-current meta is not touched', () => {
     const input = {
-      skill_version: '0.3.0',
+      skill_version: '1.0.0',
       project_path: '/p',
       doc_types: ['user-guide'],
       gost_mode: 'lite',
@@ -110,7 +110,7 @@ describe('validate', () => {
       app: { url: 'http://localhost:3000', launch: 'url' },
     };
     const out = meta.validate(input);
-    expect(out.skill_version).toBe('0.3.0');
+    expect(out.skill_version).toBe('1.0.0');
     expect(out.capture.viewports).toHaveLength(1);
     expect(out.output.languages).toEqual(['ru']);
   });
@@ -154,7 +154,7 @@ describe('load roundtrip', () => {
     );
     const { data, log } = meta.load(file);
     expect(data.app.url).toBe('http://localhost:3000');
-    expect(data.skill_version).toBe('0.3.0');
+    expect(data.skill_version).toBe('1.0.0');
     expect(log.length).toBeGreaterThan(0);
   });
 

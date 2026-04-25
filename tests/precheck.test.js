@@ -16,7 +16,7 @@ function mockFetch(responses) {
 }
 
 const BASE_META = {
-  skill_version: '0.3.0',
+  skill_version: '1.0.0',
   project_path: '/p',
   doc_types: ['user-guide'],
   gost_mode: 'lite',

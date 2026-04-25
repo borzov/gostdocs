@@ -78,7 +78,7 @@ describe('propose — defaults from introspect', () => {
 });
 
 describe('buildMeta — final assembly + validation', () => {
-  test('produces a meta object that passes the v0.3 schema', () => {
+  test('produces a meta object that passes the current schema', () => {
     const meta = buildMeta({
       existing: MIN_EXISTING,
       introspect: { derived: { port: '3000' }, framework: null },
@@ -89,7 +89,7 @@ describe('buildMeta — final assembly + validation', () => {
     expect(meta.metadata.organization).toBe('ACME');
     expect(meta.metadata.system_name).toBe('MyApp');
     expect(meta.pages).toHaveLength(1);
-    expect(meta.skill_version).toBe('0.3.0');
+    expect(meta.skill_version).toBe('1.0.0');
   });
 
   test('answers can fill credentials per role via dotted path', () => {

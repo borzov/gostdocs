@@ -1,9 +1,36 @@
-node_modules/
+# OS
 .DS_Store
+
+# Editor / IDE
+.idea/
+.vscode/
+*.swp
+
+# Logs
 *.log
+
+# Python
 __pycache__/
 *.pyc
+.pytest_cache/
+
+# Node
+node_modules/
+coverage/
+
+# Playwright (skill sandbox handles its own; root cache shouldn't be committed)
+.playwright-cache/
+
+# Claude Code workspace
+.claude/
 .superpowers/
+
+# Environment files (never commit secrets)
+.env
+.env.local
+.env.*.local
+
+# Generated docs from example/test runs
 docs/output/
 docs/screenshots/
 docs/generated/

@@ -10,7 +10,7 @@ function tmpProject() {
 
 function baseMeta(projectPath) {
   return {
-    skill_version: '0.3.0',
+    skill_version: '1.0.0',
     project_path: projectPath,
     doc_types: ['user-guide'],
     gost_mode: 'lite',

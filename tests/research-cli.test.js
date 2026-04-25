@@ -22,7 +22,7 @@ function writeSummary(root, agent, coverage, files = [], warnings = []) {
 
 function baseMeta(project) {
   return {
-    skill_version: '0.3.0',
+    skill_version: '1.0.0',
     project_path: project,
     doc_types: ['user-guide'],
     gost_mode: 'lite',

@@ -1,6 +1,6 @@
 {
   "name": "gostdocs",
-  "version": "0.3.0-dev",
+  "version": "1.0.0",
   "description": "GOST-compliant documentation generator for information systems — user guides, admin guides, operator guides, technical descriptions with automatic screenshots",
   "author": {
     "name": "borzov"

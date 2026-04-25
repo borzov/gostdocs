@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repo is
 
-A **Claude Code skill** (not an application) that generates GOST-compliant documentation — user/admin/operator guides and technical descriptions — for information systems. It is shipped as a plugin and installed under `~/.claude/skills/gostdocs/`. Active rework: **v0.3** replaces the linear 4-phase flow with a 7-phase graph; legacy v0.2 `screenshot.js` is kept as fallback until the new `capture.js` path is validated end-to-end.
+A **Claude Code skill** (not an application) that generates GOST-compliant documentation — user/admin/operator guides, technical descriptions, architecture docs, deployment guides — for information systems. It is shipped as a plugin and installed under `~/.claude/skills/gostdocs/`. The runtime is a 7-phase pipeline (precheck → research → plan-capture → capture → ui-inspection → generation → validation) with structured Doc-Model intermediates and stack-agnostic adapters.
 
 The "app" is the skill runtime under `skills/gostdocs/`; the repo root mostly hosts tests, docs, and the outer `package.json` that delegates to it.
 
@@ -33,6 +33,7 @@ node skills/gostdocs/scripts/plan-capture.js  --config docs/meta.yaml
 node skills/gostdocs/scripts/capture.js       --config docs/meta.yaml
 node skills/gostdocs/scripts/ui-inspector.js  --config docs/meta.yaml
 node skills/gostdocs/scripts/generate.js      --config docs/meta.yaml --only user-guide
+node skills/gostdocs/scripts/finalize.js      --config docs/meta.yaml
 ```
 
 Shared CLI flags across entry scripts: `--yes`, `--only <phase|doc>`, `--skip-screenshots`, `--rerun-screenshots <role>`, `--dry-run`, `--live-db`, `--vision-provider claude|openai`, `--lang ru,en`. Parsed uniformly by `scripts/lib/cli.js`.
@@ -46,7 +47,7 @@ The skill is normally driven by the `SKILL.md` orchestrator (invoked as `/gostdo
 - **`/package.json`** — dev-only (`jest`, `playwright` for test doubles). Do not add runtime deps here.
 - **`/skills/gostdocs/package.json`** — the skill's self-contained runtime sandbox (`@mermaid-js/mermaid-cli`, `playwright`, `yaml`, `zod`). Installed once by `bootstrap.js` into `skills/gostdocs/node_modules/`. Puppeteer is overridden to reuse Playwright's Chromium so we don't double-download a browser. Library code imports deps via a local helper (`require(path.resolve(__dirname, '..', '..', 'node_modules', name))`) — keep this pattern when adding new lib files, don't reach up to the repo-root `node_modules`.
 
-### v0.3 pipeline
+### Pipeline
 
 ```
 0. bootstrap       npm ci + playwright install inside skill sandbox
@@ -56,14 +57,14 @@ The skill is normally driven by the `SKILL.md` orchestrator (invoked as `/gostdo
 4. capture         Playwright + API-login + dismiss + actions (manifest v2)
 5. ui-inspection   vision agent — JSON per screenshot
 6. generation      Doc-Model JSON → Markdown → DOCX (pandoc) → postprocess-docx.py
-7. validation      md-lint + docx-lint + pHash → REPORT.md
+7. validation      md-lint + docx-lint → REPORT.md → finalisation grep-lint
 ```
 
 Each phase reads/writes disk and can be re-run in isolation via `--only <phase>`. Research results are cached by input-content hash (`scripts/lib/cache.js`, `file-hash.js`).
 
 ### Core modules (where to make changes)
 
-- **Config & schema:** `scripts/lib/meta.js` — Zod schema for `meta.yaml` v0.3 + auto-migration from v0.2. Never ask users to hand-edit; extend the migration path instead.
+- **Config & schema:** `scripts/lib/meta.js` — Zod schema for `meta.yaml` + auto-migration from v0.2. Never ask users to hand-edit; extend the migration path instead.
 - **Doc-Model:** `scripts/lib/doc-model.js` — structured intermediate (sections / paragraphs / figures / tables / admonitions / checklist-results / code / raw). `scripts/lib/doc-model-md.js` renders it to Markdown with per-section figure/table numbering. Add new element types here, not in templates.
 - **Templates & GEN:* directives:** `templates/gost-{strict,lite}/*.md` declare structure and `<!-- GEN:* -->` hooks. `scripts/lib/template-loader.js` parses them into a skeleton; `scripts/generate.js` `buildExpanders()` maps each directive name to an adapter. Add a new directive by: (1) adding an expander in `buildExpanders()`, (2) adding fixture tests in `tests/template-loader.test.js` + `tests/generate.test.js`, (3) documenting in SKILL.md under the GEN:* catalog.
 - **Adapters (stack-agnostic):** `scripts/adapters/` — autodetect + manual override. `auth/` (api-login primary, form fallback), `role-discovery/`, `schema/` (Prisma native; Alembic/Django/Knex/TypeORM/Sequelize only detect and suggest `--live-db` → `pg_dump --schema-only`), `openapi.js`, `mermaid.js` (local `mmdc` with graceful code-block fallback when unavailable), `vision/` (Claude default, OpenAI gpt-4o opt-in), `component-detector/`, `id-resolver.js`.
@@ -110,7 +111,5 @@ Translate the Doc-Model JSON once and render per language with a shared `_glossa
 
 ## Reference
 
-- `ROADMAP.md` — phase-by-phase acceptance criteria, locked decisions (vision provider, mermaid fallback, journeys-in-separate-file, pg_dump fallback, strict-vs-lite validator policy).
-- `TASKS-v0.3-remaining.md` — current spec for Phase 6C / 7B / 8B work.
-- `CHANGELOG.md` — per-phase changes for v0.3.0-dev.
+- `CHANGELOG.md` — release history.
 - `skills/gostdocs/SKILL.md` — the skill orchestrator itself; authoritative description of GEN:* directive catalog, research subagent contract, and pandoc invocation.

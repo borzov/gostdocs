@@ -11,7 +11,7 @@ function tmpProject() {
 
 function baseMeta(project, provider = 'claude') {
   return {
-    skill_version: '0.3.0',
+    skill_version: '1.0.0',
     project_path: project,
     doc_types: ['user-guide'],
     gost_mode: 'lite',

@@ -9,11 +9,11 @@ const dm = require('../skills/gostdocs/scripts/lib/doc-model');
 
 function mkTmpProject() {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gostdocs-run-'));
-  // Minimal meta.yaml compliant with v0.3 schema
+  // Minimal meta.yaml compliant with the current schema
   fs.writeFileSync(
     path.join(tmp, 'meta.yaml'),
     [
-      'skill_version: "0.3.0"',
+      'skill_version: "1.0.0"',
       `project_path: ${tmp}`,
       'doc_types: [user-guide, technical-description]',
       'gost_mode: strict',
@@ -714,7 +714,7 @@ describe('architecture and deployment-guide doc types', () => {
     writeDeployTemplate(proj.tplDir);
     // Rewrite meta to enable deployment-guide AND put a real role with credentials.
     const metaText = [
-      'skill_version: "0.3.0"',
+      'skill_version: "1.0.0"',
       `project_path: ${proj.projectPath}`,
       'doc_types: [deployment-guide]',
       'gost_mode: strict',

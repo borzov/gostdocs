@@ -5,15 +5,9 @@ description: Use when the user needs to generate formal documentation for an inf
 
 # GOSTDocs: GOST-Compliant Documentation Generator
 
-Generate formal documentation for information systems with automatic screenshots, following Russian GOST standards (RD 50-34.698-90, GOST 34.201-89, GOST R 59795-2021). **v0.3.0-dev**
+Generate formal documentation for information systems with automatic screenshots, following Russian GOST standards (RD 50-34.698-90, GOST 34.201-89, GOST R 59795-2021). **v1.0.0**
 
-> **Rework in progress.** v0.3 replaces the 4-phase linear flow with a 7-phase graph,
-> structured Doc-Model intermediates, and stack-agnostic adapters. See
-> [ROADMAP.md](../../ROADMAP.md) at the repository root for the phased plan and
-> acceptance criteria. Sections below document the current state — legacy v0.2
-> behaviour is kept as a fallback during migration.
-
-## Pipeline (v0.3)
+## Pipeline
 
 ```
 0. bootstrap       npm ci in skill sandbox + playwright install chromium
@@ -225,9 +219,8 @@ emitted but publication proceeds with a warning.
 
 ## Capture execution (Phase 3B)
 
-`scripts/capture.js` is the v0.3 orchestrator, replacing the legacy monolithic
-`screenshot.js`. It consumes `plan.json` and emits a manifest v2 into
-`docs/screenshots/manifest.json`.
+`scripts/capture.js` is the orchestrator. It consumes `plan.json` and emits a
+manifest v2 into `docs/screenshots/manifest.json`.
 
 Per group of tuples that share `(role, viewport, theme, locale)`:
 - Auth is prepared via `adapters/auth` (API-login primary, form fallback)
@@ -242,10 +235,6 @@ Per group of tuples that share `(role, viewport, theme, locale)`:
   4. `action-executor` runs `actions[]` if present; each `screenshot: true`
      step produces a separate PNG
   5. Final screenshot is written and a manifest v2 row is upserted
-
-Legacy `screenshot.js` is kept beside `capture.js` until the new path has
-been exercised end-to-end on a representative project; migration is
-one-directional (new projects use `capture.js` only).
 
 ## Capture planning (Phase 3A)
 
@@ -321,7 +310,7 @@ per-page overrides (Phase 3).
 | `--vision-provider <name>` | `claude` (default) or `openai` |
 | `--lang <list>` | comma-separated output languages, e.g. `ru,en` |
 
-## Process Flow (v0.2 legacy, still active where v0.3 is not wired)
+## Orchestrator process flow
 
 ```dot
 digraph gen_docs {
@@ -535,10 +524,10 @@ Each question has a sensible `description` field showing where the skill looked.
 
 The user is never asked twice for the same key in one session.
 
-### meta.yaml format (v0.3)
+### meta.yaml format
 
 ```yaml
-skill_version: "0.3.0"
+skill_version: "1.0.0"
 project_path: /path/to/project
 spec_path: /path/to/specs
 doc_types: [user-guide, admin-guide]
@@ -662,54 +651,16 @@ If no spec_path provided, return empty sections with notes that info should come
 
 ### Phase 2b: Screenshots (after doc-researcher completes)
 
-Use the route/page list from doc-researcher results to build the screenshot config.
+Once the research subagents have written their summaries to disk, the
+orchestrator drives the capture pipeline directly through the `plan-capture`
+and `capture` entry scripts described in
+[Capture planning (Phase 3A)](#capture-planning-phase-3a) and
+[Capture execution (Phase 3B)](#capture-execution-phase-3b). Vision analysis
+of the resulting PNGs runs through `ui-inspector.js` per
+[UI inspection (Phase 5A)](#ui-inspection-phase-5a). No separate
+screenshotter subagent is invoked.
 
-**Agent 3: screenshotter**
-
-Prompt template:
-```
-You are a screenshot automation agent. Your task is to capture screenshots of a running web application for documentation, supporting multiple user roles.
-
-Application URL: {app_url}
-Application launch: {app_launch}  (if "docker", run `docker compose up -d` in {project_path} first and wait for readiness)
-
-Steps:
-1. If app_launch is "docker":
-   - Run: cd {project_path} && docker compose up -d
-   - Wait up to 60 seconds, polling {app_url} every 3 seconds until it responds
-
-2. Build screenshot config from this route list:
-{routes_from_doc_researcher}
-
-3. Configure auth_roles from meta.yaml credentials:
-{auth_roles_from_meta_yaml}
-   - Include role "guest" (no credentials) for public pages
-   - Include each role that has credentials provided
-
-4. Run the screenshot script:
-   node {skill_path}/scripts/screenshot.js --config <config.json> --output {project_path}/docs/screenshots
-
-   Config JSON format:
-   {
-     "baseUrl": "{app_url}",
-     "viewport": {"width": 1280, "height": 800},
-     "waitAfterNavigation": 2000,
-     "timeout": 30000,
-     "pages": [ {routes_as_page_objects} ],
-     "auth_roles": [ {auth_roles_array} ]
-   }
-
-5. The script automatically:
-   - Probes all routes in guest mode to detect which require authentication
-   - Runs parallel browser sessions per role
-   - Saves screenshots to {project_path}/docs/screenshots/{role}/
-
-6. Verify all screenshots were captured. Report any auth failures.
-
-7. Return the manifest.json content.
-```
-
-## Phase 6: Generation (v0.3)
+## Phase 6: Generation
 
 Phase 6 is a deterministic orchestrator — it does NOT fill templates by hand.
 The orchestrator reads `templates/gost-{mode}/{doc_type}.md`, expands every

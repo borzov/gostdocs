@@ -1,6 +1,6 @@
 {
   "name": "@gostdocs/skill-runtime",
-  "version": "0.3.0-dev",
+  "version": "1.0.0",
   "private": true,
   "description": "Runtime dependencies for the gostdocs Claude Code skill. Self-contained sandbox — installed once into the skill directory, not into user projects.",
   "license": "MIT",
@@ -9,8 +9,7 @@
   },
   "scripts": {
     "bootstrap": "node scripts/bootstrap.js",
-    "precheck": "node scripts/precheck.js",
-    "screenshot": "node scripts/screenshot.js"
+    "precheck": "node scripts/precheck.js"
   },
   "dependencies": {
     "@mermaid-js/mermaid-cli": "10.9.1",

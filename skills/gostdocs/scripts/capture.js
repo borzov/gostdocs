@@ -17,9 +17,6 @@
  *        - for each tuple: resolve ids, substitute path, navigate,
  *          dismiss pop-overs, run actions, screenshot
  *   5. write manifest v2
- *
- * Legacy `screenshot.js` is preserved in this repo until v0.3 parity is
- * validated end-to-end; new projects should use `capture.js`.
  */
 
 'use strict';

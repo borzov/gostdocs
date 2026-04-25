@@ -1,9 +1,9 @@
 'use strict';
 
 /**
- * meta.yaml v0.3 schema, migration, and I/O.
+ * meta.yaml schema, migration, and I/O.
  *
- * - schema:   Zod schema describing the full v0.3 shape
+ * - schema:   Zod schema describing the current shape
  * - validate: throw on shape errors, return typed clone on success
  * - migrate:  accept any prior version (currently v0.2), return { data, log }
  * - load:     read file -> migrate -> validate (atomic, idempotent)
@@ -20,7 +20,7 @@ function resolveModule(name) {
 const { z } = resolveModule('zod');
 const YAML = resolveModule('yaml');
 
-const CURRENT_VERSION = '0.3.0';
+const CURRENT_VERSION = '1.0.0';
 
 const viewportSchema = z.object({
   name: z.string().min(1),
@@ -244,7 +244,7 @@ function semverCompare(a, b) {
 }
 
 /**
- * Migrate a meta object of any prior version to v0.3 shape.
+ * Migrate a meta object of any prior version to the current shape.
  * @param {Record<string, unknown>} raw
  * @returns {{ data: Record<string, unknown>, log: string[] }}
  */
